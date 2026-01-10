@@ -1,0 +1,97 @@
+.status-wrapper {
+  margin-top: 110px; /* below navbar */
+  display: flex;
+  justify-content: center;
+}
+
+.status-card {
+  width: 420px;
+  padding: 28px;
+  border-radius: 20px;
+  background: radial-gradient(circle at top, #0b1220, #020617);
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+  color: #e5e7eb;
+  text-align: center;
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+.status-title {
+  font-size: 14px;
+  letter-spacing: 2px;
+  color: #94a3b8;
+  margin-bottom: 8px;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(34, 245, 168, 0.15);
+  color: #22f5a8;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 28px;
+}
+
+.clock-circle {
+  width: 220px;
+  height: 220px;
+  margin: 0 auto 28px;
+  border-radius: 50%;
+  border: 2px solid #22f5a8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #22f5a8;
+  transition: all 0.3s ease;
+}
+
+.clock-circle.active {
+  box-shadow: 0 0 30px rgba(34, 245, 168, 0.4);
+}
+
+.play-icon {
+  width: 0;
+  height: 0;
+  border-left: 16px solid #22f5a8;
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  margin-bottom: 10px;
+}
+
+.clock-text {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.action-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.action-btn {
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: #020617;
+  border: 1px solid #1e293b;
+  color: #e5e7eb;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-btn:hover:not(:disabled) {
+  background: #020617;
+  border-color: #22f5a8;
+}
+
+.action-btn.secondary {
+  font-weight: 600;
+}
+
+.action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

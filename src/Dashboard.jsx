@@ -1,16 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
-import {
-  LogOut,
-  User,
-  Home,
-  Settings,
-  Activity,
-  Bell,
-  Menu,
-  X,
-} from "lucide-react";
+import { LogOut } from "lucide-react";
+import Clock from "./Clock"; // Import the Clock component
+import TodayStatus from "./TodayStatus"; // Import the TodayStatus component
 import "./Dashboard.css";
 
 const Dashboard = () => {
@@ -20,7 +13,6 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is logged in
     const storedUser =
       localStorage.getItem("user") || sessionStorage.getItem("user");
 
@@ -61,18 +53,17 @@ const Dashboard = () => {
     );
   }
 
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
 
   return (
     <div className="dashboard-container">
       <main className="main-content">
-        <p style={{ color: "black" }}>Welcome to the Dashboard</p>
-        <button onClick={handleLogout} className="logout-btn">
+        <Clock />
+        {/* <TodayStatus /> */}
+        {/* <button onClick={handleLogout} className="logout-btn">
           <LogOut size={20} />
           {sidebarOpen && <span>Logout</span>}
-        </button>
+        </button> */}
       </main>
     </div>
   );

@@ -1,9 +1,9 @@
+use mysql::prelude::Queryable;
+use mysql::Pool;
 use serde::{Deserialize, Serialize};
-use std::sync::Mutex;
 use tauri::{Manager, State};
-use rusqlite::{Connection, Result as SqlResult};
-use bcrypt::{hash, verify, DEFAULT_COST};
-use std::path::PathBuf;
+
+use bcrypt;
 
 // User structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,44 +40,40 @@ pub struct UserData {
 
 // Application state with database connection
 pub struct AppState {
-    db: Mutex<Connection>,
+    pool: Pool,
 }
 
 impl AppState {
-    pub fn new(db_path: PathBuf) -> SqlResult<Self> {
-        let conn = Connection::open(db_path)?;
-        
-        // Create users table if it doesn't exist
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT NOT NULL UNIQUE,
-                email TEXT NOT NULL UNIQUE,
-                password_hash TEXT NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )",
-            [],
+    pub fn new(database_url: &str) -> Result<Self, mysql::Error> {
+        let pool = Pool::new(database_url)?;
+
+        let mut conn = pool.get_conn()?;
+
+        // Create users table
+        conn.query_drop(
+            r#"
+            CREATE TABLE IF NOT EXISTS users (
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                username VARCHAR(255) NOT NULL UNIQUE,
+                email VARCHAR(255) NOT NULL UNIQUE,
+                password_hash VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            "#,
         )?;
 
-        // Add demo users if table is empty
-        let count: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM users",
-            [],
-            |row| row.get(0)
-        )?;
+        // Insert demo user if empty
+        let count: Option<u64> = conn.query_first("SELECT COUNT(*) FROM users")?;
 
-        if count == 0 {
-            let admin_hash = hash("admin", DEFAULT_COST).unwrap();
-
-            conn.execute(
-                "INSERT INTO users (username, email, password_hash) VALUES (?1, ?2, ?3)",
-                ["admin", "admin@example.com", &admin_hash],
+        if count.unwrap_or(0) == 0 {
+            let admin_hash = bcrypt::hash("admin", bcrypt::DEFAULT_COST).unwrap();
+            conn.exec_drop(
+                "INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)",
+                ("admin", "admin@example.com", admin_hash),
             )?;
         }
 
-        Ok(AppState {
-            db: Mutex::new(conn),
-        })
+        Ok(Self { pool })
     }
 }
 
@@ -88,45 +84,40 @@ fn greet(name: &str) -> String {
 
 #[tauri::command]
 fn login(login_data: LoginRequest, state: State<AppState>) -> LoginResponse {
-    let db = state.db.lock().unwrap();
+    let mut conn = state.pool.get_conn().unwrap();
 
-    let result = db.query_row(
-        "SELECT id, username, email, password_hash FROM users 
-         WHERE email = ?1 OR username = ?1",
-        [&login_data.email_or_username],
-        |row| {
-            Ok((
-                row.get::<_, i64>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-                row.get::<_, String>(3)?,
-            ))
-        },
-    );
+    let result: Option<(i64, String, String, String)> = conn
+        .exec_first(
+            "SELECT id, username, email, password_hash 
+         FROM users 
+         WHERE email = ? OR username = ?",
+            (&login_data.email_or_username, &login_data.email_or_username),
+        )
+        .unwrap();
 
     match result {
-        Ok((id, username, email, password_hash)) => {
-            // Verify password
-            match verify(&login_data.password, &password_hash) {
-                Ok(true) => LoginResponse {
+        Some((id, username, email, password_hash)) => {
+            if bcrypt::verify(&login_data.password, &password_hash).unwrap_or(false) {
+                LoginResponse {
                     success: true,
-                    message: String::from("Login successful!"),
+                    message: "Login successful!".into(),
                     user: Some(UserData {
                         id,
                         username,
                         email,
                     }),
-                },
-                _ => LoginResponse {
+                }
+            } else {
+                LoginResponse {
                     success: false,
-                    message: String::from("Invalid email/username or password"),
+                    message: "Invalid email/username or password".into(),
                     user: None,
-                },
+                }
             }
         }
-        Err(_) => LoginResponse {
+        None => LoginResponse {
             success: false,
-            message: String::from("Invalid email/username or password"),
+            message: "Invalid email/username or password".into(),
             user: None,
         },
     }
@@ -134,57 +125,50 @@ fn login(login_data: LoginRequest, state: State<AppState>) -> LoginResponse {
 
 #[tauri::command]
 fn register(user: User, state: State<AppState>) -> LoginResponse {
-    let db = state.db.lock().unwrap();
+    let mut conn = state.pool.get_conn().unwrap();
 
+    let exists: Option<i64> = conn
+        .exec_first(
+            "SELECT id FROM users WHERE email = ? OR username = ?",
+            (&user.email, &user.username),
+        )
+        .unwrap();
 
-    let exists: Result<i64, _> = db.query_row(
-        "SELECT id FROM users WHERE email = ?1 OR username = ?2",
-        [&user.email, &user.username],
-        |row| row.get(0),
-    );
-
-    if exists.is_ok() {
+    if exists.is_some() {
         return LoginResponse {
             success: false,
-            message: String::from("User with this email or username already exists"),
+            message: "User with this email or username already exists".into(),
             user: None,
         };
     }
 
-    // Hash password
-    let password_hash = match hash(&user.password, DEFAULT_COST) {
+    let password_hash = match bcrypt::hash(&user.password, bcrypt::DEFAULT_COST) {
         Ok(h) => h,
         Err(_) => {
             return LoginResponse {
                 success: false,
-                message: String::from("Error processing registration"),
+                message: "Error processing registration".into(),
                 user: None,
             }
         }
     };
 
-    // Insert new user
-    match db.execute(
-        "INSERT INTO users (username, email, password_hash) VALUES (?1, ?2, ?3)",
-        [&user.username, &user.email, &password_hash],
-    ) {
-        Ok(_) => {
-            let user_id = db.last_insert_rowid();
-            LoginResponse {
-                success: true,
-                message: String::from("Registration successful!"),
-                user: Some(UserData {
-                    id: user_id,
-                    username: user.username,
-                    email: user.email,
-                }),
-            }
-        }
-        Err(e) => LoginResponse {
-            success: false,
-            message: format!("Registration failed: {}", e),
-            user: None,
-        },
+    conn.exec_drop(
+        "INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)",
+        (&user.username, &user.email, &password_hash),
+    )
+    .unwrap();
+
+    let user_id = conn.last_insert_id() as i64;
+
+    LoginResponse {
+        success: true,
+        message: "Registration successful!".into(),
+        user: Some(UserData {
+            id: user_id,
+            username: user.username,
+            email: user.email,
+        }),
     }
 }
 
@@ -196,19 +180,18 @@ fn logout() -> bool {
 
 #[tauri::command]
 fn get_user_by_id(user_id: i64, state: State<AppState>) -> Option<UserData> {
-    let db = state.db.lock().unwrap();
-    
-    db.query_row(
-        "SELECT id, username, email FROM users WHERE id = ?1",
-        [user_id],
-        |row| {
-            Ok(UserData {
-                id: row.get(0)?,
-                username: row.get(1)?,
-                email: row.get(2)?,
-            })
-        },
-    ).ok()
+    let mut conn = state.pool.get_conn().unwrap();
+
+    conn.exec_first(
+        "SELECT id, username, email FROM users WHERE id = ?",
+        (user_id,),
+    )
+    .unwrap()
+    .map(|(id, username, email)| UserData {
+        id,
+        username,
+        email,
+    })
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -216,18 +199,17 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            let app_data_dir = app.path().app_data_dir().unwrap();
-            std::fs::create_dir_all(&app_data_dir).unwrap();
-            let db_path = app_data_dir.join("app_database.db");
-            
-            let state = AppState::new(db_path).expect("Failed to initialize database");
+            let database_url = "mysql://root:root@localhost:3306/boredapp";
+
+            let state = AppState::new(database_url).expect("Failed to initialize MySQL database");
+
             app.manage(state);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            greet, 
-            login, 
-            register, 
+            greet,
+            login,
+            register,
             logout,
             get_user_by_id
         ])
