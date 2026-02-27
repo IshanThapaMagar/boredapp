@@ -38,6 +38,18 @@ pub struct UserData {
     pub email: String,
 }
 
+// Attendance record structure
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AttendanceRecord {
+    pub user_id: i64,
+    pub date: String,              // YYYY-MM-DD
+    pub check_in: Option<String>,  // HH:mm
+    pub check_out: Option<String>, // HH:mm
+    pub status: String,
+    pub overtime: i32,
+    pub is_manual: bool,
+}
+
 // Application state with database connection
 pub struct AppState {
     pool: Pool,
@@ -61,6 +73,40 @@ impl AppState {
             )
             "#,
         )?;
+
+        // Create attendance table
+        conn.query_drop(
+            r#"
+            CREATE TABLE IF NOT EXISTS attendance (
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                user_id BIGINT NOT NULL,
+                attendance_date DATE NOT NULL,
+                check_in VARCHAR(8),
+                check_out VARCHAR(8),
+                status VARCHAR(20),
+                overtime INT DEFAULT 0,
+                is_manual BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY user_date (user_id, attendance_date),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+            "#,
+        )?;
+
+        // Migration: Ensure attendance_date column exists (if table was created before this change)
+        let column_exists: Option<String> = conn.query_first(
+            "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'attendance' AND COLUMN_NAME = 'attendance_date' AND TABLE_SCHEMA = DATABASE()"
+        )?;
+
+        if column_exists.is_none() {
+            // This is a safety measure. If we reach here, we need to alter.
+            conn.query_drop(
+                "ALTER TABLE attendance ADD COLUMN attendance_date DATE NOT NULL AFTER user_id",
+            )?;
+            conn.query_drop(
+                "ALTER TABLE attendance ADD UNIQUE KEY user_date (user_id, attendance_date)",
+            )?;
+        }
 
         // Insert demo user if empty
         let count: Option<u64> = conn.query_first("SELECT COUNT(*) FROM users")?;
@@ -194,12 +240,78 @@ fn get_user_by_id(user_id: i64, state: State<AppState>) -> Option<UserData> {
     })
 }
 
+#[tauri::command]
+fn save_attendance_record(
+    record: AttendanceRecord,
+    state: State<AppState>,
+) -> Result<bool, String> {
+    let mut conn = state
+        .pool
+        .get_conn()
+        .map_err(|e| format!("Database connection error: {}", e))?;
+
+    conn.exec_drop(
+        r#"
+        INSERT INTO attendance (user_id, attendance_date, check_in, check_out, status, overtime, is_manual)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE 
+            check_in = VALUES(check_in),
+            check_out = VALUES(check_out),
+            status = VALUES(status),
+            overtime = VALUES(overtime),
+            is_manual = VALUES(is_manual)
+        "#,
+        (
+            record.user_id,
+            &record.date,
+            record.check_in,
+            record.check_out,
+            &record.status,
+            record.overtime,
+            record.is_manual,
+        ),
+    )
+    .map(|_| true)
+    .map_err(|e| format!("Database error: {}", e))
+}
+
+#[tauri::command]
+fn get_attendance_record(
+    user_id: i64,
+    date: String,
+    state: State<AppState>,
+) -> Result<Option<AttendanceRecord>, String> {
+    let mut conn = state
+        .pool
+        .get_conn()
+        .map_err(|e| format!("Database connection error: {}", e))?;
+
+    let result: Option<(Option<String>, Option<String>, String, i32, bool)> = conn
+        .exec_first(
+            "SELECT check_in, check_out, status, overtime, is_manual FROM attendance WHERE user_id = ? AND attendance_date = ?",
+            (user_id, &date),
+        )
+        .map_err(|e| format!("Database error: {}", e))?;
+
+    Ok(result.map(
+        |(check_in, check_out, status, overtime, is_manual)| AttendanceRecord {
+            user_id,
+            date,
+            check_in,
+            check_out,
+            status,
+            overtime,
+            is_manual,
+        },
+    ))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            let database_url = "mysql://root:root@localhost:3306/boredapp";
+            let database_url = "mysql://root:@localhost:3306/boredapp";
 
             let state = AppState::new(database_url).expect("Failed to initialize MySQL database");
 
@@ -211,7 +323,9 @@ pub fn run() {
             login,
             register,
             logout,
-            get_user_by_id
+            get_user_by_id,
+            save_attendance_record,
+            get_attendance_record
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

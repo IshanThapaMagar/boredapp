@@ -57,7 +57,7 @@ export default function Clock() {
      </div>
       <div className="right-group">
         <div className="datetime-stack">
-          <div className="time">{time}</div>
+          <div className="clock-time">{time}</div>
           <div className="eng-date">{engDate}</div>
           <div className="nepali-date">
             {nepaliDate

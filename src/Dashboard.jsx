@@ -2,15 +2,15 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { LogOut } from "lucide-react";
-import Clock from "./Clock"; // Import the Clock component
-import TodayStatus from "./TodayStatus"; // Import the TodayStatus component
+import Clock from "./Clock"; 
+import { AttendanceActions } from "./AttendanceActions";
 import "./Dashboard.css";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [todayRecord, setTodayRecord] = useState(null);
 
   useEffect(() => {
     const storedUser =
@@ -21,9 +21,29 @@ const Dashboard = () => {
       return;
     }
 
+    const getDateString = (date) => {
+      const d = date || new Date();
+      return d.getFullYear() + '-' + 
+             (d.getMonth() + 1).toString().padStart(2, '0') + '-' + 
+             d.getDate().toString().padStart(2, '0');
+    };
+
+    const fetchTodayRecord = async (userId) => {
+      try {
+        const dateStr = getDateString();
+        const record = await invoke("get_attendance_record", { userId, date: dateStr });
+        if (record) {
+          setTodayRecord(record);
+        }
+      } catch (err) {
+        console.error("Error fetching attendance:", err);
+      }
+    };
+
     try {
       const userData = JSON.parse(storedUser);
       setUser(userData);
+      fetchTodayRecord(userData.id);
     } catch (err) {
       console.error("Error parsing user data:", err);
       navigate("/");
@@ -31,6 +51,85 @@ const Dashboard = () => {
       setLoading(false);
     }
   }, [navigate]);
+
+  const saveRecord = async (record) => {
+    setTodayRecord(record);
+    if (user) {
+      try {
+        await invoke("save_attendance_record", { record });
+      } catch (err) {
+        console.error("Error saving attendance:", err);
+      }
+    }
+  };
+
+  const handleCheckIn = (manualTime, manualDate) => {
+    const now = new Date();
+    const timeStr = manualTime || now.getHours().toString().padStart(2, '0') + ':' + 
+                    now.getMinutes().toString().padStart(2, '0');
+    
+    const dateStr = manualDate || now.getFullYear() + '-' + 
+                    (now.getMonth() + 1).toString().padStart(2, '0') + '-' + 
+                    now.getDate().toString().padStart(2, '0');
+
+    const newRecord = {
+      user_id: user.id,
+      date: dateStr,
+      check_in: timeStr,
+      check_out: null,
+      status: 'checked-in',
+      overtime: 0,
+      is_manual: !!manualTime
+    };
+    saveRecord(newRecord);
+  };
+
+  const calculateOvertime = (checkIn, checkOut) => {
+    // Assuming 8 hours work day (480 minutes)
+    const [inH, inM] = checkIn.split(':').map(Number);
+    const [outH, outM] = checkOut.split(':').map(Number);
+    
+    const durationMinutes = (outH * 60 + outM) - (inH * 60 + inM);
+    const overtime = Math.max(0, durationMinutes - 480);
+    return overtime;
+  };
+
+  const handleCheckOut = (manualTime, manualDate) => {
+    if (!todayRecord && !manualDate) return;
+
+    const now = new Date();
+    const timeStr = manualTime || now.getHours().toString().padStart(2, '0') + ':' + 
+                    now.getMinutes().toString().padStart(2, '0');
+    
+    const dateStr = manualDate || now.getFullYear() + '-' + 
+                    (now.getMonth() + 1).toString().padStart(2, '0') + '-' + 
+                    now.getDate().toString().padStart(2, '0');
+
+    const updatedRecord = {
+      user_id: user.id,
+      date: dateStr,
+      check_in: todayRecord?.check_in || null,
+      check_out: timeStr,
+      status: 'checked-out',
+      overtime: calculateOvertime(todayRecord?.check_in || manualTime, timeStr),
+      is_manual: todayRecord?.is_manual || !!manualTime
+    };
+    saveRecord(updatedRecord);
+  };
+
+  const handleManualLog = (manualData) => {
+    const { date, checkIn, checkOut } = manualData;
+    const record = {
+      user_id: user.id,
+      date: date,
+      check_in: checkIn,
+      check_out: checkOut,
+      status: 'checked-out',
+      overtime: calculateOvertime(checkIn, checkOut),
+      is_manual: true
+    };
+    saveRecord(record);
+  };
 
   const handleLogout = async () => {
     try {
@@ -58,12 +157,20 @@ const Dashboard = () => {
   return (
     <div className="dashboard-container">
       <main className="main-content">
-        <Clock />
-        {/* <TodayStatus /> */}
-        {/* <button onClick={handleLogout} className="logout-btn">
-          <LogOut size={20} />
-          {sidebarOpen && <span>Logout</span>}
-        </button> */}
+        <div className="dashboard-header-section p-8">
+          <Clock />
+        </div>
+        
+        <div className="dashboard-content px-8 pb-8">
+          <div className="attendance-container">
+            <AttendanceActions
+              todayRecord={todayRecord}
+              onCheckIn={handleCheckIn}
+              onCheckOut={handleCheckOut}
+              onManualLog={handleManualLog}
+            />
+          </div>
+        </div>
       </main>
     </div>
   );
