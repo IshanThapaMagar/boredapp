@@ -128,7 +128,7 @@
   transition: margin-left 0.3s ease;
 }
 
-.sidebar.closed ~ .main-content {
+.sidebar.closed~.main-content {
   margin-left: 70px;
 }
 
@@ -249,6 +249,20 @@
 /* Dashboard Content */
 .dashboard-content {
   padding: 2rem;
+  gap: 4rem;
+  align-items: flex-start;
+  margin-top: 10rem;
+}
+
+.attendance-container {
+  width: 100%;
+  max-width: 500px;
+}
+
+.holiday-form-container {
+  width: 100%;
+  max-width: 400px;
+  margin-top: 2rem;
 }
 
 .welcome-section {
@@ -419,6 +433,7 @@
   0% {
     transform: rotate(0deg);
   }
+
   100% {
     transform: rotate(360deg);
   }
@@ -458,6 +473,13 @@
 
   .dashboard-content {
     padding: 1rem;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 2rem;
+  }
+
+  .holiday-form-container {
+    max-width: 500px;
   }
 
   .dashboard-header {

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { LogIn, LogOut, Clock, Edit2 } from 'lucide-react';
 import './AttendanceActions.css';
 
-export function AttendanceActions({ todayRecord, onCheckIn, onCheckOut, onManualLog }) {
+export function AttendanceActions({ todayRecord, todayLeave, onCheckIn, onCheckOut, onManualLog }) {
   const [manualDate, setManualDate] = useState('');
   const [manualCheckIn, setManualCheckIn] = useState('');
   const [manualCheckOut, setManualCheckOut] = useState('');
@@ -11,19 +11,19 @@ export function AttendanceActions({ todayRecord, onCheckIn, onCheckOut, onManual
 
   const isCheckedIn = todayRecord?.status === 'checked-in';
   const isCheckedOut = todayRecord?.status === 'checked-out';
-  
+
   // Assuming check-in after 10:00 is considered late
   const isLate = todayRecord?.check_in && todayRecord.check_in > '10:00';
 
   const formatTime = (date) => {
-    return date.getHours().toString().padStart(2, '0') + ':' + 
-           date.getMinutes().toString().padStart(2, '0');
+    return date.getHours().toString().padStart(2, '0') + ':' +
+      date.getMinutes().toString().padStart(2, '0');
   };
 
   const formatDate = (date) => {
-    return date.getFullYear() + '-' + 
-           (date.getMonth() + 1).toString().padStart(2, '0') + '-' + 
-           date.getDate().toString().padStart(2, '0');
+    return date.getFullYear() + '-' +
+      (date.getMonth() + 1).toString().padStart(2, '0') + '-' +
+      date.getDate().toString().padStart(2, '0');
   };
 
   const handleManualSubmit = (e) => {
@@ -59,12 +59,22 @@ export function AttendanceActions({ todayRecord, onCheckIn, onCheckOut, onManual
     setIsManualOpen(true);
   };
 
+  const disabled = (todayLeave !== null && todayLeave !== undefined) || false;
+
   return (
     <div className="attendance-actions">
+      {todayLeave ? (
+        <div className="bg-warning/10 border border-warning text-warning p-4 rounded-xl mb-6 text-center shadow-sm">
+          <h3 className="font-bold text-lg">
+            {todayLeave.leave_type === 'public_holiday' ? 'Today is a public holiday' : "You're on leave today"}
+          </h3>
+          {todayLeave.notes && <p className="text-sm mt-1 opacity-80">{todayLeave.notes}</p>}
+        </div>
+      ) : null}
       <div className="main-actions">
         <button
           onClick={() => onCheckIn()}
-          disabled={isCheckedIn || isCheckedOut}
+          disabled={disabled || isCheckedIn || isCheckedOut}
           className="action-btn btn-primary"
         >
           <LogIn className="w-5 h-5" />
@@ -72,7 +82,7 @@ export function AttendanceActions({ todayRecord, onCheckIn, onCheckOut, onManual
         </button>
         <button
           onClick={() => onCheckOut()}
-          disabled={!isCheckedIn}
+          disabled={disabled || !isCheckedIn}
           className="action-btn btn-secondary"
         >
           <LogOut className="w-5 h-5" />
@@ -84,7 +94,7 @@ export function AttendanceActions({ todayRecord, onCheckIn, onCheckOut, onManual
         <button
           className="manual-btn"
           onClick={() => openManualDialog('in')}
-          disabled={isCheckedIn || isCheckedOut}
+          disabled={disabled || isCheckedIn || isCheckedOut}
         >
           <Edit2 className="w-6 h-4" />
           Manual Check In
@@ -92,7 +102,7 @@ export function AttendanceActions({ todayRecord, onCheckIn, onCheckOut, onManual
         <button
           className="manual-btn"
           onClick={() => openManualDialog('out')}
-          disabled={!isCheckedIn}
+          disabled={disabled || !isCheckedIn}
         >
           <Edit2 className="w-4 h-4" />
           Manual Out
@@ -100,6 +110,7 @@ export function AttendanceActions({ todayRecord, onCheckIn, onCheckOut, onManual
         <button
           onClick={() => openManualDialog('log')}
           className="manual-btn btn-outline"
+          disabled={disabled}
         >
           <Clock className="w-4 h-4" />
           Full Log
@@ -150,8 +161,8 @@ export function AttendanceActions({ todayRecord, onCheckIn, onCheckOut, onManual
             <div className="dialog-header flex items-center gap-2 mb-4">
               <Clock className="w-6 h-6 text-indigo-600" />
               <h3 className="text-xl font-bold text-slate-800">
-                {manualAction === 'log' ? 'Full Attendance Log' : 
-                 manualAction === 'in' ? 'Manual Check In' : 'Manual Check Out'}
+                {manualAction === 'log' ? 'Full Attendance Log' :
+                  manualAction === 'in' ? 'Manual Check In' : 'Manual Check Out'}
               </h3>
             </div>
             <form onSubmit={handleManualSubmit}>
@@ -165,7 +176,7 @@ export function AttendanceActions({ todayRecord, onCheckIn, onCheckOut, onManual
                   className="time-input"
                 />
               </div>
-              
+
               {(manualAction === 'in' || manualAction === 'log') && (
                 <div className="form-group mb-3">
                   <label className="text-sm font-medium text-black">Check In Time</label>

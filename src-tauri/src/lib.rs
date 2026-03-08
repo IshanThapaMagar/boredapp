@@ -50,6 +50,31 @@ pub struct AttendanceRecord {
     pub is_manual: bool,
 }
 
+// Office Hour structure
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OfficeHour {
+    pub day_of_week: i32,          // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    pub start_time: Option<String>,// HH:mm
+    pub end_time: Option<String>,  // HH:mm
+    pub is_off_day: bool,
+}
+
+// Leave Log structure
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LeaveLog {
+    pub id: Option<i64>,
+    pub user_id: i64,
+    pub leave_date: String,        // YYYY-MM-DD
+    pub leave_type: String,        // 'public_holiday' or 'absent'
+    pub notes: String,
+    pub absent_date_bs: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LeaveLogRequest {
+    pub id: i64,
+}
+
 // Application state with database connection
 pub struct AppState {
     pool: Pool,
@@ -104,7 +129,65 @@ impl AppState {
                 "ALTER TABLE attendance ADD COLUMN attendance_date DATE NOT NULL AFTER user_id",
             )?;
             conn.query_drop(
-                "ALTER TABLE attendance ADD UNIQUE KEY user_date (user_id, attendance_date)",
+                "ALTER TABLE attendance UNIQUE KEY user_date (user_id, attendance_date)",
+            )?;
+        }
+
+        // Create office_working_hours table
+        conn.query_drop(
+            r#"
+            CREATE TABLE IF NOT EXISTS office_working_hours (
+                day_of_week INT PRIMARY KEY,
+                start_time VARCHAR(8),
+                end_time VARCHAR(8),
+                is_off_day BOOLEAN DEFAULT FALSE
+            )
+            "#,
+        )?;
+
+        // Initialize default office working hours if empty
+        let count: Option<u64> = conn.query_first("SELECT COUNT(*) FROM office_working_hours")?;
+        if count.unwrap_or(0) == 0 {
+            for day in 0..=6 {
+                let (start_time, end_time, is_off_day) = if day == 6 {
+                    // Saturday is an off day by default
+                    (None, None, true)
+                } else {
+                    // Monday to Sunday (except Saturday) default working hours
+                    (Some("09:00".to_string()), Some("17:00".to_string()), false)
+                };
+                
+                conn.exec_drop(
+                    "INSERT INTO office_working_hours (day_of_week, start_time, end_time, is_off_day) VALUES (?, ?, ?, ?)",
+                    (day, start_time, end_time, is_off_day)
+                )?;
+            }
+        }
+
+        // Create leave_logs table
+        conn.query_drop(
+            r#"
+            CREATE TABLE IF NOT EXISTS leave_logs (
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                user_id BIGINT NOT NULL,
+                leave_date DATE NOT NULL,
+                leave_type VARCHAR(50) NOT NULL,
+                notes TEXT,
+                absent_date_bs VARCHAR(20),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY user_leave_date (user_id, leave_date),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+            "#,
+        )?;
+
+        let bs_column_exists: Option<String> = conn.query_first(
+            "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'leave_logs' AND COLUMN_NAME = 'absent_date_bs' AND TABLE_SCHEMA = DATABASE()"
+        )?;
+
+        if bs_column_exists.is_none() {
+            conn.query_drop(
+                "ALTER TABLE leave_logs ADD COLUMN absent_date_bs VARCHAR(20) AFTER notes",
             )?;
         }
 
@@ -306,12 +389,168 @@ fn get_attendance_record(
     ))
 }
 
+#[tauri::command]
+fn get_office_hours(state: State<AppState>) -> Result<Vec<OfficeHour>, String> {
+    let mut conn = state
+        .pool
+        .get_conn()
+        .map_err(|e| format!("Database connection error: {}", e))?;
+
+    let result: Vec<(i32, Option<String>, Option<String>, bool)> = conn
+        .query(
+            "SELECT day_of_week, start_time, end_time, is_off_day FROM office_working_hours ORDER BY day_of_week ASC"
+        )
+        .map_err(|e| format!("Database error: {}", e))?;
+
+    let hours = result
+        .into_iter()
+        .map(
+            |(day_of_week, start_time, end_time, is_off_day)| OfficeHour {
+                day_of_week,
+                start_time,
+                end_time,
+                is_off_day,
+            },
+        )
+        .collect();
+
+    Ok(hours)
+}
+
+#[tauri::command]
+fn save_office_hours(hours: Vec<OfficeHour>, state: State<AppState>) -> Result<bool, String> {
+    let mut conn = state
+        .pool
+        .get_conn()
+        .map_err(|e| format!("Database connection error: {}", e))?;
+
+    for hour in hours {
+        conn.exec_drop(
+            r#"
+            INSERT INTO office_working_hours (day_of_week, start_time, end_time, is_off_day)
+            VALUES (?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE 
+                start_time = VALUES(start_time),
+                end_time = VALUES(end_time),
+                is_off_day = VALUES(is_off_day)
+            "#,
+            (
+                hour.day_of_week,
+                hour.start_time,
+                hour.end_time,
+                hour.is_off_day,
+            ),
+        )
+        .map_err(|e| format!("Database error: {}", e))?;
+    }
+
+    Ok(true)
+}
+
+#[tauri::command]
+fn add_leave_log(log: LeaveLog, state: State<AppState>) -> Result<LeaveLog, String> {
+    let mut conn = state
+        .pool
+        .get_conn()
+        .map_err(|e| format!("Database connection error: {}", e))?;
+
+    conn.exec_drop(
+        r#"
+        INSERT INTO leave_logs (user_id, leave_date, leave_type, notes, absent_date_bs)
+        VALUES (?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE 
+            leave_type = VALUES(leave_type),
+            notes = VALUES(notes),
+            absent_date_bs = VALUES(absent_date_bs)
+        "#,
+        (log.user_id, &log.leave_date, &log.leave_type, &log.notes, &log.absent_date_bs),
+    )
+    .map_err(|e| format!("Database error: {}", e))?;
+
+    let id = conn.last_insert_id() as i64;
+
+    Ok(LeaveLog {
+        id: Some(id),
+        user_id: log.user_id,
+        leave_date: log.leave_date,
+        leave_type: log.leave_type,
+        notes: log.notes,
+        absent_date_bs: log.absent_date_bs,
+    })
+}
+
+#[tauri::command]
+fn get_leave_logs(user_id: i64, state: State<AppState>) -> Result<Vec<LeaveLog>, String> {
+    let mut conn = state
+        .pool
+        .get_conn()
+        .map_err(|e| format!("Database connection error: {}", e))?;
+
+    let result: Vec<(i64, String, String, String, Option<String>)> = conn
+        .exec(
+            "SELECT id, CAST(leave_date AS CHAR), leave_type, COALESCE(notes, ''), absent_date_bs FROM leave_logs WHERE user_id = ? ORDER BY leave_date DESC",
+            (user_id,)
+        )
+        .map_err(|e| format!("Database error: {}", e))?;
+
+    let logs = result
+        .into_iter()
+        .map(|(id, leave_date, leave_type, notes, absent_date_bs)| LeaveLog {
+            id: Some(id),
+            user_id,
+            leave_date,
+            leave_type,
+            notes,
+            absent_date_bs,
+        })
+        .collect();
+
+    Ok(logs)
+}
+
+#[tauri::command]
+fn get_today_leave(user_id: i64, date: String, state: State<AppState>) -> Result<Option<LeaveLog>, String> {
+    let mut conn = state
+        .pool
+        .get_conn()
+        .map_err(|e| format!("Database connection error: {}", e))?;
+
+    let result: Option<(i64, String, String, String, Option<String>)> = conn
+        .exec_first(
+            "SELECT id, CAST(leave_date AS CHAR), leave_type, COALESCE(notes, ''), absent_date_bs FROM leave_logs WHERE user_id = ? AND leave_date = ?",
+            (user_id, &date)
+        )
+        .map_err(|e| format!("Database error: {}", e))?;
+
+    Ok(result.map(|(id, leave_date, leave_type, notes, absent_date_bs)| LeaveLog {
+        id: Some(id),
+        user_id,
+        leave_date,
+        leave_type,
+        notes,
+        absent_date_bs,
+    }))
+}
+
+#[tauri::command]
+fn remove_leave_log(data: LeaveLogRequest, state: State<AppState>) -> Result<bool, String> {
+    let mut conn = state
+        .pool
+        .get_conn()
+        .map_err(|e| format!("Database connection error: {}", e))?;
+
+    conn.exec_drop("DELETE FROM leave_logs WHERE id = ?", (data.id,))
+        .map_err(|e| format!("Database error: {}", e))?;
+
+    Ok(true)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            let database_url = "mysql://root:@localhost:3306/boredapp";
+            let database_url = "mysql://root:root@localhost:3306/boredapp";
 
             let state = AppState::new(database_url).expect("Failed to initialize MySQL database");
 
@@ -325,7 +564,13 @@ pub fn run() {
             logout,
             get_user_by_id,
             save_attendance_record,
-            get_attendance_record
+            get_attendance_record,
+            get_office_hours,
+            save_office_hours,
+            add_leave_log,
+            get_leave_logs,
+            remove_leave_log,
+            get_today_leave
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

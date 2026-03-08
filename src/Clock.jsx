@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
+import SettingsModal from "./SettingsModal";
 import "./Clock.css";
 
 export default function Clock() {
   const [now, setNow] = useState(new Date());
   const [nepaliDate, setNepaliDate] = useState(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
@@ -52,9 +54,9 @@ export default function Clock() {
 
   return (
     <nav className="clock-navbar">
-     <div className="left-group">
+      <div className="left-group">
         <div className="app-title">Track it</div>
-     </div>
+      </div>
       <div className="right-group">
         <div className="datetime-stack">
           <div className="clock-time">{time}</div>
@@ -66,10 +68,19 @@ export default function Clock() {
           </div>
         </div>
 
-        <button className="settings-btn" aria-label="Settings">
+        <button
+          className="settings-btn"
+          aria-label="Settings"
+          onClick={() => setIsSettingsOpen(true)}
+        >
           ⚙
         </button>
       </div>
+
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
     </nav>
   );
 }

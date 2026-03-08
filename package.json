@@ -12,10 +12,17 @@
   "dependencies": {
     "@tauri-apps/api": "^2.10.1",
     "@tauri-apps/plugin-opener": "^2.5.3",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "flatpickr": "^4.6.13",
     "lucide-react": "^0.562.0",
+    "nepali-date-converter": "^3.4.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-router-dom": "^7.11.0"
+    "react-flatpickr": "^4.0.11",
+    "react-router-dom": "^7.11.0",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

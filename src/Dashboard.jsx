@@ -2,8 +2,10 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { LogOut } from "lucide-react";
-import Clock from "./Clock"; 
+import Clock from "./Clock";
 import { AttendanceActions } from "./AttendanceActions";
+import { HolidayForm } from "./HolidayForm";
+import { Toaster } from "sonner";
 import "./Dashboard.css";
 
 const Dashboard = () => {
@@ -11,6 +13,7 @@ const Dashboard = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [todayRecord, setTodayRecord] = useState(null);
+  const [todayLeave, setTodayLeave] = useState(null);
 
   useEffect(() => {
     const storedUser =
@@ -23,9 +26,9 @@ const Dashboard = () => {
 
     const getDateString = (date) => {
       const d = date || new Date();
-      return d.getFullYear() + '-' + 
-             (d.getMonth() + 1).toString().padStart(2, '0') + '-' + 
-             d.getDate().toString().padStart(2, '0');
+      return d.getFullYear() + '-' +
+        (d.getMonth() + 1).toString().padStart(2, '0') + '-' +
+        d.getDate().toString().padStart(2, '0');
     };
 
     const fetchTodayRecord = async (userId) => {
@@ -35,8 +38,12 @@ const Dashboard = () => {
         if (record) {
           setTodayRecord(record);
         }
+        const leaveRecord = await invoke("get_today_leave", { userId, date: dateStr });
+        if (leaveRecord) {
+          setTodayLeave(leaveRecord);
+        }
       } catch (err) {
-        console.error("Error fetching attendance:", err);
+        console.error("Error fetching attendance/leave:", err);
       }
     };
 
@@ -65,12 +72,12 @@ const Dashboard = () => {
 
   const handleCheckIn = (manualTime, manualDate) => {
     const now = new Date();
-    const timeStr = manualTime || now.getHours().toString().padStart(2, '0') + ':' + 
-                    now.getMinutes().toString().padStart(2, '0');
-    
-    const dateStr = manualDate || now.getFullYear() + '-' + 
-                    (now.getMonth() + 1).toString().padStart(2, '0') + '-' + 
-                    now.getDate().toString().padStart(2, '0');
+    const timeStr = manualTime || now.getHours().toString().padStart(2, '0') + ':' +
+      now.getMinutes().toString().padStart(2, '0');
+
+    const dateStr = manualDate || now.getFullYear() + '-' +
+      (now.getMonth() + 1).toString().padStart(2, '0') + '-' +
+      now.getDate().toString().padStart(2, '0');
 
     const newRecord = {
       user_id: user.id,
@@ -85,10 +92,9 @@ const Dashboard = () => {
   };
 
   const calculateOvertime = (checkIn, checkOut) => {
-    // Assuming 8 hours work day (480 minutes)
     const [inH, inM] = checkIn.split(':').map(Number);
     const [outH, outM] = checkOut.split(':').map(Number);
-    
+
     const durationMinutes = (outH * 60 + outM) - (inH * 60 + inM);
     const overtime = Math.max(0, durationMinutes - 480);
     return overtime;
@@ -98,12 +104,12 @@ const Dashboard = () => {
     if (!todayRecord && !manualDate) return;
 
     const now = new Date();
-    const timeStr = manualTime || now.getHours().toString().padStart(2, '0') + ':' + 
-                    now.getMinutes().toString().padStart(2, '0');
-    
-    const dateStr = manualDate || now.getFullYear() + '-' + 
-                    (now.getMonth() + 1).toString().padStart(2, '0') + '-' + 
-                    now.getDate().toString().padStart(2, '0');
+    const timeStr = manualTime || now.getHours().toString().padStart(2, '0') + ':' +
+      now.getMinutes().toString().padStart(2, '0');
+
+    const dateStr = manualDate || now.getFullYear() + '-' +
+      (now.getMonth() + 1).toString().padStart(2, '0') + '-' +
+      now.getDate().toString().padStart(2, '0');
 
     const updatedRecord = {
       user_id: user.id,
@@ -155,20 +161,26 @@ const Dashboard = () => {
   if (!user) return null;
 
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container relative">
+      <Toaster position="bottom-right" theme="dark" />
       <main className="main-content">
         <div className="dashboard-header-section p-8">
           <Clock />
         </div>
-        
-        <div className="dashboard-content px-8 pb-8">
+
+        <div className="dashboard-content">
           <div className="attendance-container">
             <AttendanceActions
               todayRecord={todayRecord}
+              todayLeave={todayLeave}
               onCheckIn={handleCheckIn}
               onCheckOut={handleCheckOut}
               onManualLog={handleManualLog}
             />
+          </div>
+
+          <div className="holiday-form-container">
+            <HolidayForm userId={user.id} />
           </div>
         </div>
       </main>

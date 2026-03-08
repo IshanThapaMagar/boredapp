@@ -3,8 +3,6 @@
   flex-direction: column;
   gap: 1.5rem;
   width: 100%;
-  max-width: 500px;
-  margin-top: 10rem;
 }
 
 .main-actions {
@@ -47,7 +45,7 @@
 .secondary-actions {
   display: flex;
   gap: 1rem;
-  width: 34rem;
+  width: 100%;
 }
 
 .manual-btn {
@@ -68,7 +66,7 @@
 
 .status-card {
   background: white;
-  width: 34rem;
+  width: 100%;
   padding: 1.5rem;
   border-radius: 16px;
   border: 1px solid #e2e8f0;
@@ -110,8 +108,14 @@
   color: #1e293b;
 }
 
-.time.in { color: #667eea; }
-.time.late { color: #ef4444; }
+.time.in {
+  color: #667eea;
+}
+
+.time.late {
+  color: #ef4444;
+}
+
 .late-warning {
   font-size: 0.75rem;
   color: #ef4444;
@@ -149,7 +153,7 @@
   border-radius: 20px;
   width: 90%;
   max-width: 400px;
-  color: #1e293b; 
+  color: #1e293b;
 }
 
 .time-input {
@@ -161,7 +165,7 @@
   border-radius: 8px;
   margin: 1rem 0;
   color: #1e293b;
-  background: #ffffff;  
+  background: #ffffff;
 }
 
 .submit-btn {
