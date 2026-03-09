@@ -53,9 +53,9 @@ pub struct AttendanceRecord {
 // Office Hour structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OfficeHour {
-    pub day_of_week: i32,          // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-    pub start_time: Option<String>,// HH:mm
-    pub end_time: Option<String>,  // HH:mm
+    pub day_of_week: i32,           // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    pub start_time: Option<String>, // HH:mm
+    pub end_time: Option<String>,   // HH:mm
     pub is_off_day: bool,
 }
 
@@ -64,8 +64,8 @@ pub struct OfficeHour {
 pub struct LeaveLog {
     pub id: Option<i64>,
     pub user_id: i64,
-    pub leave_date: String,        // YYYY-MM-DD
-    pub leave_type: String,        // 'public_holiday' or 'absent'
+    pub leave_date: String, // YYYY-MM-DD
+    pub leave_type: String, // 'public_holiday' or 'absent'
     pub notes: String,
     pub absent_date_bs: Option<String>,
 }
@@ -156,7 +156,7 @@ impl AppState {
                     // Monday to Sunday (except Saturday) default working hours
                     (Some("09:00".to_string()), Some("17:00".to_string()), false)
                 };
-                
+
                 conn.exec_drop(
                     "INSERT INTO office_working_hours (day_of_week, start_time, end_time, is_off_day) VALUES (?, ?, ?, ?)",
                     (day, start_time, end_time, is_off_day)
@@ -463,7 +463,13 @@ fn add_leave_log(log: LeaveLog, state: State<AppState>) -> Result<LeaveLog, Stri
             notes = VALUES(notes),
             absent_date_bs = VALUES(absent_date_bs)
         "#,
-        (log.user_id, &log.leave_date, &log.leave_type, &log.notes, &log.absent_date_bs),
+        (
+            log.user_id,
+            &log.leave_date,
+            &log.leave_type,
+            &log.notes,
+            &log.absent_date_bs,
+        ),
     )
     .map_err(|e| format!("Database error: {}", e))?;
 
@@ -495,21 +501,27 @@ fn get_leave_logs(user_id: i64, state: State<AppState>) -> Result<Vec<LeaveLog>,
 
     let logs = result
         .into_iter()
-        .map(|(id, leave_date, leave_type, notes, absent_date_bs)| LeaveLog {
-            id: Some(id),
-            user_id,
-            leave_date,
-            leave_type,
-            notes,
-            absent_date_bs,
-        })
+        .map(
+            |(id, leave_date, leave_type, notes, absent_date_bs)| LeaveLog {
+                id: Some(id),
+                user_id,
+                leave_date,
+                leave_type,
+                notes,
+                absent_date_bs,
+            },
+        )
         .collect();
 
     Ok(logs)
 }
 
 #[tauri::command]
-fn get_today_leave(user_id: i64, date: String, state: State<AppState>) -> Result<Option<LeaveLog>, String> {
+fn get_today_leave(
+    user_id: i64,
+    date: String,
+    state: State<AppState>,
+) -> Result<Option<LeaveLog>, String> {
     let mut conn = state
         .pool
         .get_conn()
@@ -522,14 +534,16 @@ fn get_today_leave(user_id: i64, date: String, state: State<AppState>) -> Result
         )
         .map_err(|e| format!("Database error: {}", e))?;
 
-    Ok(result.map(|(id, leave_date, leave_type, notes, absent_date_bs)| LeaveLog {
-        id: Some(id),
-        user_id,
-        leave_date,
-        leave_type,
-        notes,
-        absent_date_bs,
-    }))
+    Ok(result.map(
+        |(id, leave_date, leave_type, notes, absent_date_bs)| LeaveLog {
+            id: Some(id),
+            user_id,
+            leave_date,
+            leave_type,
+            notes,
+            absent_date_bs,
+        },
+    ))
 }
 
 #[tauri::command]
@@ -550,7 +564,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            let database_url = "mysql://root:root@localhost:3306/boredapp";
+            let database_url = "mysql://root:@localhost:3306/boredapp";
 
             let state = AppState::new(database_url).expect("Failed to initialize MySQL database");
 

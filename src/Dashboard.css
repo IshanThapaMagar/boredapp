@@ -124,145 +124,270 @@
 
 /* Main Content */
 .main-content {
-  flex: 1;
   transition: margin-left 0.3s ease;
+ 
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .sidebar.closed~.main-content {
   margin-left: 70px;
 }
 
-.dashboard-header {
+/* Dashboard Content */
+.dashboard-content {
+  padding: 0.9rem;
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+  margin-top: 10rem;
+  box-sizing: border-box;
+}
+
+.left-side {
+  width: 380px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.right-side {
+  flex-grow: 1;
+  min-width: 0; /* Allow the flex item to shrink below its content size */
+}
+
+/* Calendar Card */
+.calendar-card {
   background: white;
-  padding: 1.5rem 2rem;
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  width: 100%;
+  box-sizing: border-box;
+  
+}
+
+.calendar-header-nav {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap; /* Handle narrow screens */
   gap: 1rem;
 }
 
-.header-left h1 {
-  margin: 0;
-  font-size: 1.75rem;
-  color: #1a1a2e;
-}
-
-.mobile-menu-btn {
-  display: none;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 8px;
-  transition: background 0.2s;
-}
-
-.mobile-menu-btn:hover {
-  background: #f0f0f0;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-}
-
-.notification-btn {
-  position: relative;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 8px;
-  transition: background 0.2s;
-  color: #666;
-}
-
-.notification-btn:hover {
-  background: #f0f0f0;
-}
-
-.notification-badge {
-  position: absolute;
-  top: 0;
-  right: 0;
-  background: #ff3b30;
-  color: white;
-  font-size: 0.7rem;
-  padding: 0.15rem 0.4rem;
-  border-radius: 10px;
-  font-weight: 600;
-}
-
-.user-profile {
+.calendar-title {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.5rem;
-  border-radius: 12px;
+}
+
+.bs-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #1a1a2e;
+  white-space: nowrap;
+}
+
+.divider {
+  font-size: 1.5rem;
+  color: #ccc;
+  font-weight: 300;
+}
+
+.ad-title {
+  font-size: 1.1rem;
+  color: #666;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.nav-controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.arrow-nav {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.arrow-nav button, .today-btn {
+  background: #f0f2f5;
+  border: 1px solid #e4e6e9;
+  border-radius: 8px;
+  padding: 0.4rem;
   cursor: pointer;
-  transition: background 0.2s;
-}
-
-.user-profile:hover {
-  background: #f0f0f0;
-}
-
-.user-avatar {
-  width: 40px;
-  height: 40px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 50%;
+  color: #1a1a2e;
+  transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
 }
 
-.user-info {
+.today-btn {
+  padding: 0.4rem 1rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  background: #4a90e2;
+  color: white;
+  border: none;
+}
+
+.arrow-nav button:hover, .today-btn:hover {
+  background: #e4e6e9;
+  transform: scale(1.05);
+}
+
+.today-btn:hover {
+  background: #357abd;
+}
+
+.dropdown-nav {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.calendar-select {
+  background: #f0f2f5;
+  border: 1px solid #e4e6e9;
+  border-radius: 8px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1a1a2e;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.calendar-select:hover {
+  background: #e4e6e9;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: #eef0f2;
+  border-radius: 12px;
+  border: 1px solid #eef0f2;
+  width: 100%;
+}
+
+.weekday-header {
+  background: #f8f9fa;
+  padding: 0.75rem 0.25rem;
+  text-align: center;
+  font-weight: 700;
+  color: #666;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.calendar-day {
+  background: white;
+  min-height: 85px;
+  padding: 0.5rem;
   display: flex;
   flex-direction: column;
+  transition: background 0.2s;
+  min-width: 0;
+  position: relative;
 }
 
-.user-name {
-  margin: 0;
-  font-weight: 600;
-  font-size: 0.9rem;
+.calendar-day.is-today {
+  background: #f0f7ff;
+  border: 1px solid #4a90e2;
+  z-index: 1;
+}
+
+.calendar-day.is-today .day-bs-number {
+  color: #4a90e2;
+}
+
+.calendar-day:hover:not(.padding) {
+  background: #fcfdfe;
+}
+
+.calendar-day.padding {
+  background: #f8f9fa;
+}
+
+.day-top {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 2px;
+}
+
+.day-bs-number {
+  font-size: 1.5rem;
+  font-weight: 900;
   color: #1a1a2e;
+  line-height: 1;
 }
 
-.user-email {
-  margin: 0;
-  font-size: 0.75rem;
-  color: #666;
+.day-bottom {
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 2px;
 }
 
-/* Dashboard Content */
-.dashboard-content {
-  padding: 2rem;
-  gap: 4rem;
-  align-items: flex-start;
-  margin-top: 10rem;
+.day-ad-info {
+  font-size: 0.7rem;
+  color: #888;
+  font-weight: 500;
+}
+
+.day-tithi {
+  font-size: 0.7rem;
+  color: #4a90e2;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.day-event {
+  font-size: 0.65rem;
+  color: #555;
+  background: rgba(74, 144, 226, 0.08);
+  padding: 2px 4px;
+  border-radius: 4px;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-left: 2px solid #4a90e2;
+  max-width: 100%;
+}
+
+.calendar-day.holiday :is(.day-bs-number, .day-ad-info, .day-tithi, .day-event) {
+  color: #ff3b30 !important;
+}
+
+.calendar-day.holiday .day-event {
+  background: rgba(255, 59, 48, 0.08);
+  border-left-color: #ff3b30;
+}
+
+.calendar-day.holiday {
+  background: #fffafa;
 }
 
 .attendance-container {
   width: 100%;
-  max-width: 500px;
 }
 
 .holiday-form-container {
   width: 100%;
-  max-width: 400px;
-  margin-top: 2rem;
+  margin-top: 0;
 }
 
 .welcome-section {
