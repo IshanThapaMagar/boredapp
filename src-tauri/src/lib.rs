@@ -59,7 +59,6 @@ pub struct OfficeHour {
     pub is_off_day: bool,
 }
 
-// Leave Log structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LeaveLog {
     pub id: Option<i64>,
@@ -68,6 +67,15 @@ pub struct LeaveLog {
     pub leave_type: String, // 'public_holiday' or 'absent'
     pub notes: String,
     pub absent_date_bs: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CalendarDay {
+    pub bs_date: String,
+    pub ad_date: String,
+    pub event: Option<String>,
+    pub tithi: Option<String>,
+    pub holiday: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -190,6 +198,20 @@ impl AppState {
                 "ALTER TABLE leave_logs ADD COLUMN absent_date_bs VARCHAR(20) AFTER notes",
             )?;
         }
+
+        // Create calendar_data table
+        conn.query_drop(
+            r#"
+            CREATE TABLE IF NOT EXISTS calendar_data (
+                id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                bs_date VARCHAR(255) NOT NULL,
+                ad_date DATE NOT NULL UNIQUE,
+                event TEXT,
+                tithi VARCHAR(255),
+                holiday BOOLEAN DEFAULT FALSE
+            )
+            "#,
+        )?;
 
         // Insert demo user if empty
         let count: Option<u64> = conn.query_first("SELECT COUNT(*) FROM users")?;
@@ -559,6 +581,40 @@ fn remove_leave_log(data: LeaveLogRequest, state: State<AppState>) -> Result<boo
     Ok(true)
 }
 
+#[tauri::command]
+fn get_calendar_data(
+    start_date: String,
+    end_date: String,
+    state: State<AppState>,
+) -> Result<Vec<CalendarDay>, String> {
+    let mut conn = state
+        .pool
+        .get_conn()
+        .map_err(|e| format!("Database connection error: {}", e))?;
+
+    let result: Vec<(String, String, Option<String>, Option<String>, bool)> = conn
+        .exec(
+            "SELECT bs_date, CAST(ad_date AS CHAR), event, tithi, holiday FROM calendar_data WHERE ad_date BETWEEN ? AND ? ORDER BY ad_date ASC",
+            (&start_date, &end_date),
+        )
+        .map_err(|e| format!("Database error: {}", e))?;
+
+    let days = result
+        .into_iter()
+        .map(|(bs_date, ad_date, event, tithi, holiday)| {
+            CalendarDay {
+                bs_date,
+                ad_date,
+                event,
+                tithi,
+                holiday,
+            }
+        })
+        .collect();
+
+    Ok(days)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -584,7 +640,8 @@ pub fn run() {
             add_leave_log,
             get_leave_logs,
             remove_leave_log,
-            get_today_leave
+            get_today_leave,
+            get_calendar_data
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

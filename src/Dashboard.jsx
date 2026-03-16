@@ -8,7 +8,6 @@ import { HolidayForm } from "./HolidayForm";
 import { Toaster } from "sonner";
 import "./Dashboard.css";
 
-import calendarData from "./lib/calendar_2080_2084.json";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 
 const nepaliMonths = [
@@ -25,28 +24,66 @@ const Calendar = () => {
   const [currentYear, setCurrentYear] = useState(2082);
   const [currentMonth, setCurrentMonth] = useState(11);
 
+  const [calendarData, setCalendarData] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    const today = new Date();
-    // Try multiple date formats to match JSON (some might be YYYY-M-D or YYYY-MM-DD)
-    const adDateStr1 = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
-    const adDateStr2 = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
+    const fetchCalendarData = async () => {
+      try {
+        const data = await invoke("get_calendar_data", { 
+          startDate: "2023-01-01", 
+          endDate: "2030-12-31" 
+        });
+        setCalendarData(data);
+      } catch (err) {
+        console.error("Error fetching calendar data:", err);
+        setCalendarData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCalendarData();
+  }, []);
+
+  const normalizeDate = (dateStr) => {
+    if (!dateStr) return "";
+    // Robust Devanagari to ASCII digit conversion using regex for the range
+    let normalized = dateStr.replace(/[\u0966-\u096F]/g, (d) => {
+      return (d.charCodeAt(0) - 0x0966).toString();
+    });
     
-    const todayEntry = calendarData.find(entry => entry.ad_date === adDateStr1 || entry.ad_date === adDateStr2);
+    // Ensure YYYY-MM-DD format
+    const parts = normalized.split('-');
+    if (parts.length !== 3) return normalized;
+    return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+  };
+
+  useEffect(() => {
+    if (calendarData.length === 0) return;
+
+    const today = new Date();
+    const adDateStr = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
+    
+    // Normalize both for comparison
+    const todayEntry = calendarData.find(entry => normalizeDate(entry.ad_date) === adDateStr);
     
     if (todayEntry) {
-      const parts = todayEntry.bs_date.split('-');
+      // Use normalized version of bs_date for parsing
+      const parts = normalizeDate(todayEntry.bs_date).split('-');
       setCurrentYear(parseInt(parts[0]));
       setCurrentMonth(parseInt(parts[1]));
     }
-  }, []);
+  }, [calendarData]);
 
   const monthStr = currentMonth.toString().padStart(2, '0');
   const monthPrefix = `${currentYear}-${monthStr}-`;
-  const daysInMonth = calendarData.filter(d => d.bs_date.startsWith(monthPrefix));
+  const daysInMonth = calendarData.filter(d => normalizeDate(d.bs_date).startsWith(monthPrefix));
 
-  const years = [...new Set(calendarData.map(d => parseInt(d.bs_date.split('-')[0])))].sort();
+  const years = [...new Set(calendarData.map(d => parseInt(normalizeDate(d.bs_date).split('-')[0])))].sort();
 
-  if (daysInMonth.length === 0) return <div>No data</div>;
+  if (loading) return <div className="calendar-card"><div className="p-4">Loading Calendar...</div></div>;
+  if (calendarData.length === 0) return <div className="calendar-card"><div className="p-4">No calendar data found. (Check database/Backend)</div></div>;
+  if (daysInMonth.length === 0) return <div className="calendar-card"><div className="p-4">No records found for {currentYear}-{currentMonth}. (Total Data: {calendarData.length})</div></div>;
 
   const startDayAD = daysInMonth[0].ad_date;
   const startWeekday = new Date(startDayAD).getDay();
@@ -80,10 +117,11 @@ const Calendar = () => {
 
   const handleGoToToday = () => {
     const today = new Date();
-    const adDateStr = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
-    const todayEntry = calendarData.find(entry => entry.ad_date === adDateStr);
+    const adDateStr = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
+    
+    const todayEntry = calendarData.find(entry => normalizeDate(entry.ad_date) === adDateStr);
     if (todayEntry) {
-      const parts = todayEntry.bs_date.split('-');
+      const parts = normalizeDate(todayEntry.bs_date).split('-');
       setCurrentYear(parseInt(parts[0]));
       setCurrentMonth(parseInt(parts[1]));
     }
@@ -91,20 +129,20 @@ const Calendar = () => {
 
   return (
     <div className="calendar-card">
-      <div className="calendar-header-nav">
-        <div className="calendar-title">
-          <span className="bs-title">{currentYear} {nepaliMonthsUnicode[currentMonth - 1]}</span>
-          <span className="divider">|</span>
-          <span className="ad-title">{adRangeStr}</span>
+      <div className="p-4 border-b border-[#e5e7eb]">
+        <div className="calendar-info-row">
+          <div className="calendar-title">
+            <span className="bs-title">{currentYear} {nepaliMonthsUnicode[currentMonth - 1]}</span>
+            <span className="divider">|</span>
+            <span className="ad-title">{adRangeStr}</span>
+          </div>
         </div>
         
         <div className="nav-controls">
-          <div className="arrow-nav">
-            <button onClick={() => setCurrentYear(prev => prev - 1)} title="Prev Year"><ChevronsLeft size={18} /></button>
-            <button onClick={handlePrevMonth} title="Prev Month"><ChevronLeft size={18} /></button>
-          </div>
-
-          <div className="dropdown-nav">
+          <div className="nav-group">
+            <button onClick={() => setCurrentYear(prev => prev - 1)} className="nav-icon-btn" title="Prev Year"><ChevronsLeft size={16} /></button>
+            <button onClick={handlePrevMonth} className="nav-icon-btn" title="Prev Month"><ChevronLeft size={16} /></button>
+            
             <select 
               value={currentMonth} 
               onChange={(e) => setCurrentMonth(parseInt(e.target.value))}
@@ -114,6 +152,7 @@ const Calendar = () => {
                 <option key={m} value={i + 1}>{m}</option>
               ))}
             </select>
+            
             <select 
               value={currentYear} 
               onChange={(e) => setCurrentYear(parseInt(e.target.value))}
@@ -123,11 +162,9 @@ const Calendar = () => {
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
-          </div>
 
-          <div className="arrow-nav">
-            <button onClick={handleNextMonth} title="Next Month"><ChevronRight size={18} /></button>
-            <button onClick={() => setCurrentYear(prev => prev + 1)} title="Next Year"><ChevronsRight size={18} /></button>
+            <button onClick={handleNextMonth} className="nav-icon-btn" title="Next Month"><ChevronRight size={16} /></button>
+            <button onClick={() => setCurrentYear(prev => prev + 1)} className="nav-icon-btn" title="Next Year"><ChevronsRight size={16} /></button>
           </div>
 
           <button onClick={handleGoToToday} className="today-btn">Today</button>
@@ -142,9 +179,11 @@ const Calendar = () => {
           <div key={`pad-${i}`} className="calendar-day padding"></div>
         ))}
         {daysInMonth.map(day => {
-          const bsDay = day.bs_date.split('-').pop();
+          const bsDayRaw = day.bs_date.split('-').pop();
+          const bsDay = normalizeDate(day.bs_date).split('-').pop();
           const today = new Date();
-          const isToday = day.ad_date === `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+          const adDateStr = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
+          const isToday = normalizeDate(day.ad_date) === adDateStr;
           
           return (
             <div key={day.bs_date} className={`calendar-day ${day.holiday ? 'holiday' : ''} ${isToday ? 'is-today' : ''}`}>

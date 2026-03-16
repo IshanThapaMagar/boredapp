@@ -1,0 +1,10 @@
+UPDATE calendar_data SET bs_date = REPLACE(bs_date, '०', '0');
+UPDATE calendar_data SET bs_date = REPLACE(bs_date, '१', '1');
+UPDATE calendar_data SET bs_date = REPLACE(bs_date, '२', '2');
+UPDATE calendar_data SET bs_date = REPLACE(bs_date, '३', '3');
+UPDATE calendar_data SET bs_date = REPLACE(bs_date, '४', '4');
+UPDATE calendar_data SET bs_date = REPLACE(bs_date, '५', '5');
+UPDATE calendar_data SET bs_date = REPLACE(bs_date, '६', '6');
+UPDATE calendar_data SET bs_date = REPLACE(bs_date, '७', '7');
+UPDATE calendar_data SET bs_date = REPLACE(bs_date, '८', '8');
+UPDATE calendar_data SET bs_date = REPLACE(bs_date, '९', '9');

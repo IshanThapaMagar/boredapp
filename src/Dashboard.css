@@ -170,13 +170,8 @@
   
 }
 
-.calendar-header-nav {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  flex-wrap: wrap; /* Handle narrow screens */
-  gap: 1rem;
+.calendar-info-row {
+  margin-bottom: 0.75rem;
 }
 
 .calendar-title {
@@ -186,87 +181,96 @@
 }
 
 .bs-title {
-  font-size: 1.6rem;
+  font-size: 1.5rem;
   font-weight: 800;
   color: #1a1a2e;
-  white-space: nowrap;
 }
 
 .divider {
-  font-size: 1.5rem;
-  color: #ccc;
+  font-size: 1.25rem;
+  color: #d1d5db;
   font-weight: 300;
 }
 
 .ad-title {
-  font-size: 1.1rem;
-  color: #666;
+  font-size: 1rem;
+  color: #6b7280;
   font-weight: 500;
-  white-space: nowrap;
 }
 
 .nav-controls {
   display: flex;
-  gap: 1rem;
+  justify-content: flex-start;
   align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
 }
 
-.arrow-nav {
+.nav-group {
   display: flex;
-  gap: 0.25rem;
+  align-items: center;
+  gap: 0.4rem;
+  background: #f3f4f6;
+  padding: 0.25rem;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
 }
 
-.arrow-nav button, .today-btn {
-  background: #f0f2f5;
-  border: 1px solid #e4e6e9;
-  border-radius: 8px;
-  padding: 0.4rem;
+.nav-icon-btn {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 0.35rem;
   cursor: pointer;
-  color: #1a1a2e;
-  transition: all 0.2s;
+  color: #374151;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.2s;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
-.today-btn {
-  padding: 0.4rem 1rem;
-  font-weight: 700;
-  font-size: 0.9rem;
-  background: #4a90e2;
-  color: white;
-  border: none;
-}
-
-.arrow-nav button:hover, .today-btn:hover {
-  background: #e4e6e9;
-  transform: scale(1.05);
-}
-
-.today-btn:hover {
-  background: #357abd;
-}
-
-.dropdown-nav {
-  display: flex;
-  gap: 0.5rem;
+.nav-icon-btn:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  color: #111827;
 }
 
 .calendar-select {
-  background: #f0f2f5;
-  border: 1px solid #e4e6e9;
-  border-radius: 8px;
-  padding: 0.4rem 0.75rem;
-  font-size: 0.9rem;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
   font-weight: 600;
-  color: #1a1a2e;
+  color: #374151;
   cursor: pointer;
   outline: none;
   transition: all 0.2s;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
 .calendar-select:hover {
-  background: #e4e6e9;
+  border-color: #d1d5db;
+}
+
+.today-btn {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.45rem 1.25rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 1px 3px rgba(59, 130, 246, 0.3);
+}
+
+.today-btn:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(59, 130, 246, 0.2);
 }
 
 .calendar-grid {
