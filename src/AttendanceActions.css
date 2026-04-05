@@ -5,6 +5,31 @@
   width: 100%;
 }
 
+.leave-notice {
+  width: 100%;
+  padding: 1rem;
+  text-align: center;
+  border-radius: 14px;
+  border: 1px solid #fdba74;
+  background: linear-gradient(180deg, #fff7ed 0%, #ffedd5 100%);
+  color: #9a3412;
+  box-shadow: 0 4px 10px rgba(234, 88, 12, 0.08);
+}
+
+.leave-notice-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.leave-notice-notes {
+  margin: 0.4rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.35;
+  color: #9a3412;
+  opacity: 0.85;
+}
+
 .main-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;

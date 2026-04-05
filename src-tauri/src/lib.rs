@@ -412,6 +412,43 @@ fn get_attendance_record(
 }
 
 #[tauri::command]
+fn get_attendance_records(
+    user_id: i64,
+    start_date: String,
+    end_date: String,
+    state: State<AppState>,
+) -> Result<Vec<AttendanceRecord>, String> {
+    let mut conn = state
+        .pool
+        .get_conn()
+        .map_err(|e| format!("Database connection error: {}", e))?;
+
+    let result: Vec<(String, Option<String>, Option<String>, String, i32, bool)> = conn
+        .exec(
+            "SELECT CAST(attendance_date AS CHAR), check_in, check_out, status, overtime, is_manual FROM attendance WHERE user_id = ? AND attendance_date BETWEEN ? AND ? ORDER BY attendance_date ASC",
+            (user_id, &start_date, &end_date),
+        )
+        .map_err(|e| format!("Database error: {}", e))?;
+
+    let records = result
+        .into_iter()
+        .map(
+            |(date, check_in, check_out, status, overtime, is_manual)| AttendanceRecord {
+                user_id,
+                date,
+                check_in,
+                check_out,
+                status,
+                overtime,
+                is_manual,
+            },
+        )
+        .collect();
+
+    Ok(records)
+}
+
+#[tauri::command]
 fn get_office_hours(state: State<AppState>) -> Result<Vec<OfficeHour>, String> {
     let mut conn = state
         .pool
@@ -601,14 +638,12 @@ fn get_calendar_data(
 
     let days = result
         .into_iter()
-        .map(|(bs_date, ad_date, event, tithi, holiday)| {
-            CalendarDay {
-                bs_date,
-                ad_date,
-                event,
-                tithi,
-                holiday,
-            }
+        .map(|(bs_date, ad_date, event, tithi, holiday)| CalendarDay {
+            bs_date,
+            ad_date,
+            event,
+            tithi,
+            holiday,
         })
         .collect();
 
@@ -635,6 +670,7 @@ pub fn run() {
             get_user_by_id,
             save_attendance_record,
             get_attendance_record,
+            get_attendance_records,
             get_office_hours,
             save_office_hours,
             add_leave_log,

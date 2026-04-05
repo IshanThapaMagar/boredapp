@@ -1,44 +1,61 @@
-import React, { useState } from 'react';
-import { LogIn, LogOut, Clock, Edit2 } from 'lucide-react';
-import './AttendanceActions.css';
+import React, { useState } from "react";
+import { LogIn, LogOut, Clock, Edit2 } from "lucide-react";
+import "./AttendanceActions.css";
 
-export function AttendanceActions({ todayRecord, todayLeave, onCheckIn, onCheckOut, onManualLog }) {
-  const [manualDate, setManualDate] = useState('');
-  const [manualCheckIn, setManualCheckIn] = useState('');
-  const [manualCheckOut, setManualCheckOut] = useState('');
+export function AttendanceActions({
+  todayRecord,
+  todayLeave,
+  onCheckIn,
+  onCheckOut,
+  onManualLog,
+}) {
+  const [manualDate, setManualDate] = useState("");
+  const [manualCheckIn, setManualCheckIn] = useState("");
+  const [manualCheckOut, setManualCheckOut] = useState("");
   const [isManualOpen, setIsManualOpen] = useState(false);
-  const [manualAction, setManualAction] = useState('in'); // 'in', 'out', or 'log'
+  const [manualAction, setManualAction] = useState("in"); // 'in', 'out', or 'log'
 
-  const isCheckedIn = todayRecord?.status === 'checked-in';
-  const isCheckedOut = todayRecord?.status === 'checked-out';
+  const isCheckedIn = todayRecord?.status === "checked-in";
+  const isCheckedOut = todayRecord?.status === "checked-out";
 
   // Assuming check-in after 10:00 is considered late
-  const isLate = todayRecord?.check_in && todayRecord.check_in > '10:00';
+  const isLate = todayRecord?.check_in && todayRecord.check_in > "10:00";
 
   const formatTime = (date) => {
-    return date.getHours().toString().padStart(2, '0') + ':' +
-      date.getMinutes().toString().padStart(2, '0');
+    return (
+      date.getHours().toString().padStart(2, "0") +
+      ":" +
+      date.getMinutes().toString().padStart(2, "0")
+    );
   };
 
   const formatDate = (date) => {
-    return date.getFullYear() + '-' +
-      (date.getMonth() + 1).toString().padStart(2, '0') + '-' +
-      date.getDate().toString().padStart(2, '0');
+    return (
+      date.getFullYear() +
+      "-" +
+      (date.getMonth() + 1).toString().padStart(2, "0") +
+      "-" +
+      date.getDate().toString().padStart(2, "0")
+    );
   };
 
   const handleManualSubmit = (e) => {
     e.preventDefault();
-    if (manualAction === 'log') {
+    if (manualAction === "log") {
       if (manualDate && manualCheckIn && manualCheckOut) {
-        onManualLog({ date: manualDate, checkIn: manualCheckIn, checkOut: manualCheckOut });
+        onManualLog({
+          date: manualDate,
+          checkIn: manualCheckIn,
+          checkOut: manualCheckOut,
+        });
         setIsManualOpen(false);
       }
-    } else if (manualAction === 'in') {
+    } else if (manualAction === "in") {
       if (manualCheckIn) {
         onCheckIn(manualCheckIn, manualDate);
         setIsManualOpen(false);
       }
-    } else if (manualAction === 'out') {
+    } else if (manualAction === "out") {
       if (manualCheckOut) {
         onCheckOut(manualCheckOut, manualDate);
         setIsManualOpen(false);
@@ -50,11 +67,19 @@ export function AttendanceActions({ todayRecord, todayLeave, onCheckIn, onCheckO
     setManualAction(action);
     const now = new Date();
     setManualDate(formatDate(now));
-    if (action === 'in' || action === 'log') {
-      setManualCheckIn((action === 'log' && todayRecord?.check_in) ? todayRecord.check_in : formatTime(now));
+    if (action === "in" || action === "log") {
+      setManualCheckIn(
+        action === "log" && todayRecord?.check_in
+          ? todayRecord.check_in
+          : formatTime(now),
+      );
     }
-    if (action === 'out' || action === 'log') {
-      setManualCheckOut((action === 'log' && todayRecord?.check_out) ? todayRecord.check_out : formatTime(now));
+    if (action === "out" || action === "log") {
+      setManualCheckOut(
+        action === "log" && todayRecord?.check_out
+          ? todayRecord.check_out
+          : formatTime(now),
+      );
     }
     setIsManualOpen(true);
   };
@@ -64,11 +89,15 @@ export function AttendanceActions({ todayRecord, todayLeave, onCheckIn, onCheckO
   return (
     <div className="attendance-actions">
       {todayLeave ? (
-        <div className="bg-warning/10 border border-warning text-warning p-4 rounded-xl mb-6 text-center shadow-sm">
-          <h3 className="font-bold text-lg">
-            {todayLeave.leave_type === 'public_holiday' ? 'Today is a public holiday' : "You're on leave today"}
+        <div className="leave-notice">
+          <h3 className="leave-notice-title">
+            {todayLeave.leave_type === "public_holiday"
+              ? "Today is a public holiday"
+              : "You're on leave today"}
           </h3>
-          {todayLeave.notes && <p className="text-sm mt-1 opacity-80">{todayLeave.notes}</p>}
+          {todayLeave.notes && (
+            <p className="leave-notice-notes">{todayLeave.notes}</p>
+          )}
         </div>
       ) : null}
       <div className="main-actions">
@@ -93,7 +122,7 @@ export function AttendanceActions({ todayRecord, todayLeave, onCheckIn, onCheckO
       <div className="secondary-actions">
         <button
           className="manual-btn"
-          onClick={() => openManualDialog('in')}
+          onClick={() => openManualDialog("in")}
           disabled={disabled || isCheckedIn || isCheckedOut}
         >
           <Edit2 className="w-6 h-4" />
@@ -101,14 +130,14 @@ export function AttendanceActions({ todayRecord, todayLeave, onCheckIn, onCheckO
         </button>
         <button
           className="manual-btn"
-          onClick={() => openManualDialog('out')}
+          onClick={() => openManualDialog("out")}
           disabled={disabled || !isCheckedIn}
         >
           <Edit2 className="w-4 h-4" />
           Manual Out
         </button>
         <button
-          onClick={() => openManualDialog('log')}
+          onClick={() => openManualDialog("log")}
           className="manual-btn btn-outline"
           disabled={disabled}
         >
@@ -125,11 +154,11 @@ export function AttendanceActions({ todayRecord, todayLeave, onCheckIn, onCheckO
               {todayRecord.check_in && (
                 <div className="time-entry">
                   <span className="label">Check In</span>
-                  <span className={`time in ${isLate ? 'late' : ''}`}>{todayRecord.check_in}</span>
+                  <span className={`time in ${isLate ? "late" : ""}`}>
+                    {todayRecord.check_in}
+                  </span>
                   {isLate && (
-                    <span className="late-warning">
-                      Checked in late
-                    </span>
+                    <span className="late-warning">Checked in late</span>
                   )}
                 </div>
               )}
@@ -144,7 +173,8 @@ export function AttendanceActions({ todayRecord, todayLeave, onCheckIn, onCheckO
               <div className="overtime">
                 <span className="label">Overtime</span>
                 <span className="overtime-value">
-                  +{Math.floor(todayRecord.overtime / 60)}h {todayRecord.overtime % 60}m
+                  +{Math.floor(todayRecord.overtime / 60)}h{" "}
+                  {todayRecord.overtime % 60}m
                 </span>
               </div>
             )}
@@ -161,13 +191,18 @@ export function AttendanceActions({ todayRecord, todayLeave, onCheckIn, onCheckO
             <div className="dialog-header flex items-center gap-2 mb-4">
               <Clock className="w-6 h-6 text-indigo-600" />
               <h3 className="text-xl font-bold text-slate-800">
-                {manualAction === 'log' ? 'Full Attendance Log' :
-                  manualAction === 'in' ? 'Manual Check In' : 'Manual Check Out'}
+                {manualAction === "log"
+                  ? "Full Attendance Log"
+                  : manualAction === "in"
+                    ? "Manual Check In"
+                    : "Manual Check Out"}
               </h3>
             </div>
             <form onSubmit={handleManualSubmit}>
               <div className="form-group mb-3">
-                <label className="text-sm font-medium text-slate-700">Date</label>
+                <label className="text-sm font-medium text-slate-700">
+                  Date
+                </label>
                 <input
                   type="date"
                   required
@@ -177,9 +212,11 @@ export function AttendanceActions({ todayRecord, todayLeave, onCheckIn, onCheckO
                 />
               </div>
 
-              {(manualAction === 'in' || manualAction === 'log') && (
+              {(manualAction === "in" || manualAction === "log") && (
                 <div className="form-group mb-3">
-                  <label className="text-sm font-medium text-black">Check In Time</label>
+                  <label className="text-sm font-medium text-black">
+                    Check In Time
+                  </label>
                   <input
                     type="time"
                     required
@@ -190,9 +227,11 @@ export function AttendanceActions({ todayRecord, todayLeave, onCheckIn, onCheckO
                 </div>
               )}
 
-              {(manualAction === 'out' || manualAction === 'log') && (
+              {(manualAction === "out" || manualAction === "log") && (
                 <div className="form-group mb-3">
-                  <label className="text-sm font-medium text-black">Check Out Time</label>
+                  <label className="text-sm font-medium text-black">
+                    Check Out Time
+                  </label>
                   <input
                     type="time"
                     required

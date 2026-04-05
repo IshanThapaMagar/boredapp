@@ -25,7 +25,6 @@
   color: #e5e7eb;
 }
 
-
 /* subtle accent underline */
 .app-title::after {
   content: "";
@@ -57,7 +56,6 @@
   letter-spacing: 2px;
   color: #22f5a8;
 }
-
 
 .eng-date {
   font-size: 13px;
