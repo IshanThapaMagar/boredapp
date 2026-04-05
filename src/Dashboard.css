@@ -13,7 +13,8 @@
   flex-direction: column;
   transition: width 0.3s ease;
   position: fixed;
-  height: 100vh;
+  top: 10rem;
+  height: calc(100vh - 10rem);
   z-index: 1000;
 }
 
@@ -125,7 +126,7 @@
 /* Main Content */
 .main-content {
   transition: margin-left 0.3s ease;
-
+  margin-left: 260px;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
