@@ -655,7 +655,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            let database_url = "mysql://root:@localhost:3306/boredapp";
+            let database_url = "mysql://root:root@localhost:3306/boredapp";
 
             let state = AppState::new(database_url).expect("Failed to initialize MySQL database");
 

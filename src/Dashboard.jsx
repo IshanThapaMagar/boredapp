@@ -2,11 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import {
-  LayoutDashboard,
-  User,
-  Settings,
-  Menu,
-  LogOut,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -14,7 +9,8 @@ import {
   BarChart3,
   PieChart,
 } from "lucide-react";
-import Clock from "./Clock";
+import Navbar from "./components/Navbar";
+import Sidebar from "./components/Sidebar";
 import { AttendanceActions } from "./AttendanceActions";
 import { HolidayForm } from "./HolidayForm";
 import { Toaster } from "sonner";
@@ -755,55 +751,18 @@ const Dashboard = () => {
     <div className="dashboard-container relative">
       <Toaster position="bottom-right" theme="dark" />
 
+      {/* Navbar */}
+      <Navbar />
+
       {/* Sidebar */}
-      <aside className={`sidebar ${!isSidebarOpen ? "closed" : ""}`}>
-        <div className="sidebar-header">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-[#4a90e2] rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold">B</span>
-            </div>
-            {isSidebarOpen && <h2>Track it</h2>}
-          </div>
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="sidebar-toggle"
-            title={isSidebarOpen ? "Collapse" : "Expand"}
-          >
-            {isSidebarOpen ? <ChevronLeft size={20} /> : <Menu size={20} />}
-          </button>
-        </div>
+      <Sidebar 
+        onLogout={handleLogout} 
+        user={user} 
+        isOpen={isSidebarOpen} 
+        onToggle={() => setIsSidebarOpen(!isSidebarOpen)} 
+      />
 
-        <nav className="sidebar-nav">
-          <div className="nav-item active">
-            <LayoutDashboard size={20} />
-            <span>Dashboard</span>
-          </div>
-          <div className="nav-item">
-            <User size={20} />
-            <span>Profile</span>
-          </div>
-          <div className="nav-item">
-            <BarChart3 size={20} />
-            <span>Reports</span>
-          </div>
-          <div className="nav-item">
-            <Settings size={20} />
-            <span>Settings</span>
-          </div>
-        </nav>
-
-        <div className="sidebar-footer">
-          <button onClick={handleLogout} className="logout-btn">
-            <LogOut size={20} />
-            <span>Logout</span>
-          </button>
-        </div>
-      </aside>
-
-      <main className="main-content">
-        <div className="dashboard-header-section p-8">
-          <Clock />
-        </div>
+      <main className={`main-content ${!isSidebarOpen ? "sidebar-closed" : ""}`}>
 
         <div className="dashboard-content">
           <div className="left-side">

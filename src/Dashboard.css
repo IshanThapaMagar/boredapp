@@ -1,148 +1,36 @@
 .dashboard-container {
-  display: flex;
+  display: block;
   min-height: 100vh;
   background: #f5f5f5;
-}
-
-/* Sidebar */
-.sidebar {
-  width: 260px;
-  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
-  color: white;
-  display: flex;
-  flex-direction: column;
-  transition: width 0.3s ease;
-  position: fixed;
-  top: 10rem;
-  height: calc(100vh - 10rem);
-  z-index: 1000;
-}
-
-.sidebar.closed {
-  width: 70px;
-}
-
-.sidebar-header {
-  padding: 1.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.sidebar-header h2 {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 700;
-}
-
-.sidebar.closed .sidebar-header h2 {
-  display: none;
-}
-
-.sidebar-toggle {
-  background: transparent;
-  border: none;
-  color: white;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 8px;
-  transition: background 0.2s;
-}
-
-.sidebar-toggle:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.sidebar-nav {
-  flex: 1;
-  padding: 1rem 0;
-}
-
-.nav-item {
-  display: flex;
-  align-items: center;
-  padding: 1rem 1.5rem;
-  color: rgba(255, 255, 255, 0.7);
-  text-decoration: none;
-  transition: all 0.2s;
-  gap: 1rem;
-  cursor: pointer;
-}
-
-.nav-item:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-}
-
-.nav-item.active {
-  background: rgba(255, 255, 255, 0.15);
-  color: white;
-  border-left: 3px solid #4a90e2;
-}
-
-.sidebar.closed .nav-item {
-  justify-content: center;
-  padding: 1rem;
-}
-
-.sidebar.closed .nav-item span {
-  display: none;
-}
-
-.sidebar-footer {
-  padding: 1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.logout-btn {
+  position: relative;
   width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background: rgba(255, 59, 48, 0.1);
-  border: 1px solid rgba(255, 59, 48, 0.3);
-  color: #ff3b30;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 0.95rem;
-}
-
-.logout-btn:hover {
-  background: rgba(255, 59, 48, 0.2);
-}
-
-.sidebar.closed .logout-btn {
-  justify-content: center;
-  padding: 1rem 0.5rem;
-}
-
-.sidebar.closed .logout-btn span {
-  display: none;
 }
 
 /* Main Content */
 .main-content {
-  transition: margin-left 0.3s ease;
   margin-left: 260px;
+  padding-top: 170px;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  padding-left: 0.9rem;
+  padding-right: 0.9rem;
+  padding-bottom: 0.9rem;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
 }
 
-.sidebar.closed ~ .main-content {
+.main-content.sidebar-closed {
   margin-left: 70px;
 }
 
 /* Dashboard Content */
 .dashboard-content {
-  padding: 0.9rem;
   display: flex;
   gap: 2rem;
   align-items: flex-start;
-  margin-top: 10rem;
   box-sizing: border-box;
 }
 
@@ -814,37 +702,25 @@
   font-size: 1rem;
 }
 
-/* Responsive */
+/* Responsive Design */
 @media (max-width: 768px) {
-  .sidebar {
-    transform: translateX(-100%);
-  }
-
-  .sidebar.open {
-    transform: translateX(0);
-  }
-
   .main-content {
-    margin-left: 0;
+    margin-left: 240px;
+    padding-top: 210px;
+    min-height: 100vh;
   }
 
-  .mobile-menu-btn {
-    display: block;
-  }
-
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .user-info {
-    display: none;
+  .main-content.sidebar-closed {
+    margin-left: 60px;
   }
 
   .dashboard-content {
-    padding: 1rem;
     flex-direction: column;
-    align-items: center;
-    margin-top: 2rem;
+    gap: 1.5rem;
+  }
+
+  .left-side {
+    width: 100%;
   }
 
   .dashboard-insights {
@@ -865,10 +741,42 @@
   }
 
   .holiday-form-container {
-    max-width: 500px;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .main-content {
+    margin-left: 220px;
+    padding-top: 210px;
+    min-height: 100vh;
+    padding: 0.75rem;
   }
 
-  .dashboard-header {
+  .main-content.sidebar-closed {
+    margin-left: 55px;
+  }
+
+  .sidebar {
+    width: 220px;
+  }
+
+  .dashboard-content {
+    gap: 1rem;
+  }
+
+  .left-side {
+    width: 100%;
+  }
+
+  .dashboard-insights {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .chart-card {
     padding: 1rem;
+    border-radius: 12px;
+  }
   }
 }

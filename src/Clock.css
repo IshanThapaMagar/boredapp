@@ -30,8 +30,8 @@
   content: "";
   position: absolute;
   left: 0;
-  bottom: -6px;
-  width: 40%;
+  bottom: 0px;
+  width: 100%;
   height: 3px;
   border-radius: 2px;
   background: #22f5a8;
