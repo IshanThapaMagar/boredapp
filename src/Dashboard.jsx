@@ -12,6 +12,8 @@ import {
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
 import { AttendanceActions } from "./AttendanceActions";
+import AttendanceTablePage from "./AttendanceTablePage";
+import SettingsPage from "./SettingsPage";
 import { HolidayForm } from "./HolidayForm";
 import { Toaster } from "sonner";
 import "./Dashboard.css";
@@ -539,6 +541,7 @@ const Dashboard = () => {
   const [chartLoading, setChartLoading] = useState(true);
   const [chartRefreshToken, setChartRefreshToken] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [activeSection, setActiveSection] = useState("dashboard");
 
   useEffect(() => {
     const storedUser =
@@ -755,63 +758,72 @@ const Dashboard = () => {
       <Navbar />
 
       {/* Sidebar */}
-      <Sidebar 
-        onLogout={handleLogout} 
-        user={user} 
-        isOpen={isSidebarOpen} 
-        onToggle={() => setIsSidebarOpen(!isSidebarOpen)} 
+      <Sidebar
+        onLogout={handleLogout}
+        user={user}
+        isOpen={isSidebarOpen}
+        onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+        activeItem={activeSection}
+        onSelectItem={setActiveSection}
       />
 
-      <main className={`main-content ${!isSidebarOpen ? "sidebar-closed" : ""}`}>
+      <main
+        className={`main-content ${!isSidebarOpen ? "sidebar-closed" : ""} ${activeSection === "settings" ? "is-settings" : ""}`}
+      >
+        {activeSection === "attendance" ? (
+          <AttendanceTablePage userId={user.id} />
+        ) : activeSection === "settings" ? (
+          <SettingsPage user={user} />
+        ) : (
+          <div className="dashboard-content">
+            <div className="left-side">
+              <div className="attendance-container">
+                <AttendanceActions
+                  todayRecord={todayRecord}
+                  todayLeave={todayLeave}
+                  onCheckIn={handleCheckIn}
+                  onCheckOut={handleCheckOut}
+                  onManualLog={handleManualLog}
+                />
+              </div>
 
-        <div className="dashboard-content">
-          <div className="left-side">
-            <div className="attendance-container">
-              <AttendanceActions
-                todayRecord={todayRecord}
-                todayLeave={todayLeave}
-                onCheckIn={handleCheckIn}
-                onCheckOut={handleCheckOut}
-                onManualLog={handleManualLog}
-              />
+              <div className="holiday-form-container">
+                <HolidayForm
+                  userId={user.id}
+                  onSaved={() => setChartRefreshToken((value) => value + 1)}
+                />
+              </div>
             </div>
 
-            <div className="holiday-form-container">
-              <HolidayForm
-                userId={user.id}
-                onSaved={() => setChartRefreshToken((value) => value + 1)}
-              />
+            <div className="right-side">
+              <div className="dashboard-insights">
+                {chartLoading ? (
+                  <>
+                    <div className="chart-card chart-loading">
+                      Loading attendance chart...
+                    </div>
+                    <div className="chart-card chart-loading">
+                      Loading leave chart...
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <WeeklyAttendanceChart
+                      data={buildWeeklyAttendanceData(
+                        attendanceHistory,
+                        leaveLogs,
+                      )}
+                    />
+                    <LeaveDistributionChart
+                      data={buildLeaveDistribution(leaveLogs)}
+                    />
+                  </>
+                )}
+              </div>
+              <Calendar />
             </div>
           </div>
-
-          <div className="right-side">
-            <div className="dashboard-insights">
-              {chartLoading ? (
-                <>
-                  <div className="chart-card chart-loading">
-                    Loading attendance chart...
-                  </div>
-                  <div className="chart-card chart-loading">
-                    Loading leave chart...
-                  </div>
-                </>
-              ) : (
-                <>
-                  <WeeklyAttendanceChart
-                    data={buildWeeklyAttendanceData(
-                      attendanceHistory,
-                      leaveLogs,
-                    )}
-                  />
-                  <LeaveDistributionChart
-                    data={buildLeaveDistribution(leaveLogs)}
-                  />
-                </>
-              )}
-            </div>
-            <Calendar />
-          </div>
-        </div>
+        )}
       </main>
     </div>
   );

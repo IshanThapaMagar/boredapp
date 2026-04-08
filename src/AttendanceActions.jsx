@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { LogIn, LogOut, Clock, Edit2 } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
 import "./AttendanceActions.css";
 
 export function AttendanceActions({
@@ -14,12 +15,58 @@ export function AttendanceActions({
   const [manualCheckOut, setManualCheckOut] = useState("");
   const [isManualOpen, setIsManualOpen] = useState(false);
   const [manualAction, setManualAction] = useState("in"); // 'in', 'out', or 'log'
+  const [todayStartTime, setTodayStartTime] = useState(null);
 
   const isCheckedIn = todayRecord?.status === "checked-in";
   const isCheckedOut = todayRecord?.status === "checked-out";
 
-  // Assuming check-in after 10:00 is considered late
-  const isLate = todayRecord?.check_in && todayRecord.check_in > "10:00";
+  useEffect(() => {
+    const loadOfficeHours = async () => {
+      try {
+        const hours = await invoke("get_office_hours");
+        if (!Array.isArray(hours)) {
+          setTodayStartTime(null);
+          return;
+        }
+
+        const dayOfWeek = new Date().getDay();
+        const todayOfficeHour = hours.find(
+          (hour) => hour.day_of_week === dayOfWeek,
+        );
+
+        if (todayOfficeHour?.is_off_day || !todayOfficeHour?.start_time) {
+          setTodayStartTime(null);
+          return;
+        }
+
+        setTodayStartTime(todayOfficeHour.start_time);
+      } catch (err) {
+        console.error("Failed to fetch office hours:", err);
+        setTodayStartTime(null);
+      }
+    };
+
+    loadOfficeHours();
+  }, []);
+
+  const toMinutes = (timeValue) => {
+    if (!timeValue) return null;
+    const [hours, minutes] = timeValue.split(":");
+    const parsedHours = Number(hours);
+    const parsedMinutes = Number(minutes);
+
+    if (Number.isNaN(parsedHours) || Number.isNaN(parsedMinutes)) {
+      return null;
+    }
+
+    return parsedHours * 60 + parsedMinutes;
+  };
+
+  const isLate =
+    todayRecord?.check_in &&
+    toMinutes(todayRecord.check_in) !== null &&
+    toMinutes(todayStartTime) !== null &&
+    toMinutes(todayRecord.check_in) > toMinutes(todayStartTime);
 
   const formatTime = (date) => {
     return (

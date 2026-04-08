@@ -5,7 +5,7 @@
   left: 0;
   width: 260px;
   height: 100vh;
-  background: #050E3C;
+  background: #050e3c;
   color: white;
   display: flex;
   flex-direction: column;
@@ -55,12 +55,9 @@
   margin-left: auto;
 }
 
-
-
 /* Sidebar Navigation */
 .sidebar-nav {
   flex: 1;
-  padding: 0.5rem 0;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;

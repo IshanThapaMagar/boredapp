@@ -1,0 +1,73 @@
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct User {
+    pub id: Option<i64>,
+    pub username: String,
+    pub email: String,
+    pub password: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LoginRequest {
+    pub email_or_username: String,
+    pub password: String,
+    pub remember_me: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LoginResponse {
+    pub success: bool,
+    pub message: String,
+    pub user: Option<UserData>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UserData {
+    pub id: i64,
+    pub username: String,
+    pub email: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AttendanceRecord {
+    pub user_id: i64,
+    pub date: String,              // YYYY-MM-DD
+    pub check_in: Option<String>,  // HH:mm
+    pub check_out: Option<String>, // HH:mm
+    pub status: String,
+    pub overtime: i32,
+    pub is_manual: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OfficeHour {
+    pub day_of_week: i32,           // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    pub start_time: Option<String>, // HH:mm
+    pub end_time: Option<String>,   // HH:mm
+    pub is_off_day: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LeaveLog {
+    pub id: Option<i64>,
+    pub user_id: i64,
+    pub leave_date: String, // YYYY-MM-DD
+    pub leave_type: String, // 'public_holiday' or 'absent'
+    pub notes: String,
+    pub absent_date_bs: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CalendarDay {
+    pub bs_date: String,
+    pub ad_date: String,
+    pub event: Option<String>,
+    pub tithi: Option<String>,
+    pub holiday: bool,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LeaveLogRequest {
+    pub id: i64,
+}

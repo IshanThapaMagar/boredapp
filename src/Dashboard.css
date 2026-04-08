@@ -26,6 +26,12 @@
   margin-left: 70px;
 }
 
+.main-content.is-settings {
+  height: 100vh;
+  overflow: hidden;
+  padding-bottom: 0;
+}
+
 /* Dashboard Content */
 .dashboard-content {
   display: flex;
@@ -284,15 +290,17 @@
   text-align: center;
 }
 
-/* Calendar Card */
+/* Calendar Card - Optimized to fit layout */
 .calendar-card {
   background: white;
   border-radius: 20px;
-  padding: 1.5rem;
+  padding: 1.25rem;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
   border: 1px solid rgba(0, 0, 0, 0.05);
   width: 100%;
   box-sizing: border-box;
+  margin-top: 0;
+  overflow-x: auto;
 }
 
 .calendar-info-row {
@@ -301,34 +309,36 @@
 
 .calendar-title {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .bs-title {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 800;
   color: #1a1a2e;
 }
 
 .divider {
-  font-size: 1.25rem;
+  font-size: 1rem;
   color: #d1d5db;
   font-weight: 300;
 }
 
 .ad-title {
-  font-size: 1rem;
+  font-size: 0.85rem;
   color: #6b7280;
   font-weight: 500;
 }
 
 .nav-controls {
   display: flex;
-  justify-content: flex-start;
+  justify-content: space-between;
   align-items: center;
   gap: 0.75rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
 }
 
 .nav-group {
@@ -339,6 +349,7 @@
   padding: 0.25rem;
   border-radius: 10px;
   border: 1px solid #e5e7eb;
+  flex-wrap: wrap;
 }
 
 .nav-icon-btn {
@@ -366,7 +377,7 @@
   border: 1px solid #e5e7eb;
   border-radius: 6px;
   padding: 0.35rem 0.5rem;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 600;
   color: #374151;
   cursor: pointer;
@@ -384,12 +395,13 @@
   color: white;
   border: none;
   border-radius: 8px;
-  padding: 0.45rem 1.25rem;
+  padding: 0.4rem 1rem;
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   cursor: pointer;
   transition: all 0.2s;
   box-shadow: 0 1px 3px rgba(59, 130, 246, 0.3);
+  white-space: nowrap;
 }
 
 .today-btn:hover {
@@ -406,22 +418,24 @@
   border-radius: 12px;
   border: 1px solid #eef0f2;
   width: 100%;
+  overflow-x: auto;
+  min-width: 600px;
 }
 
 .weekday-header {
   background: #f8f9fa;
-  padding: 0.75rem 0.25rem;
+  padding: 0.6rem 0.25rem;
   text-align: center;
   font-weight: 700;
   color: #666;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
 }
 
 .calendar-day {
   background: white;
-  min-height: 85px;
-  padding: 0.5rem;
+  min-height: 75px;
+  padding: 0.4rem;
   display: flex;
   flex-direction: column;
   transition: background 0.2s;
@@ -454,7 +468,7 @@
 }
 
 .day-bs-number {
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   font-weight: 900;
   color: #1a1a2e;
   line-height: 1;
@@ -466,25 +480,27 @@
   justify-content: space-between;
   align-items: baseline;
   gap: 2px;
+  flex-wrap: wrap;
 }
 
 .day-ad-info {
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   color: #888;
   font-weight: 500;
 }
 
 .day-tithi {
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   color: #4a90e2;
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 60px;
 }
 
 .day-event {
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   color: #555;
   background: rgba(74, 144, 226, 0.08);
   padding: 2px 4px;
@@ -743,6 +759,51 @@
   .holiday-form-container {
     max-width: 100%;
   }
+
+  /* Calendar responsive */
+  .calendar-card {
+    padding: 1rem;
+  }
+
+  .bs-title {
+    font-size: 1.1rem;
+  }
+
+  .ad-title {
+    font-size: 0.75rem;
+  }
+
+  .nav-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .nav-group {
+    justify-content: center;
+  }
+
+  .calendar-day {
+    min-height: 65px;
+    padding: 0.3rem;
+  }
+
+  .day-bs-number {
+    font-size: 1rem;
+  }
+
+  .day-tithi,
+  .day-ad-info {
+    font-size: 0.55rem;
+  }
+
+  .day-event {
+    font-size: 0.55rem;
+  }
+
+  .weekday-header {
+    padding: 0.5rem 0.25rem;
+    font-size: 0.65rem;
+  }
 }
 
 @media (max-width: 480px) {
@@ -778,5 +839,47 @@
     padding: 1rem;
     border-radius: 12px;
   }
+
+  /* Calendar responsive */
+  .calendar-card {
+    padding: 0.75rem;
+  }
+
+  .calendar-day {
+    min-height: 55px;
+    padding: 0.25rem;
+  }
+
+  .day-bs-number {
+    font-size: 0.85rem;
+  }
+
+  .day-tithi,
+  .day-ad-info {
+    font-size: 0.5rem;
+  }
+
+  .day-event {
+    font-size: 0.5rem;
+    padding: 1px 2px;
+  }
+
+  .nav-icon-btn {
+    padding: 0.25rem;
+  }
+
+  .calendar-select {
+    padding: 0.25rem 0.4rem;
+    font-size: 0.7rem;
+  }
+
+  .today-btn {
+    padding: 0.35rem 0.8rem;
+    font-size: 0.7rem;
+  }
+
+  .weekday-header {
+    padding: 0.4rem 0.25rem;
+    font-size: 0.6rem;
   }
 }

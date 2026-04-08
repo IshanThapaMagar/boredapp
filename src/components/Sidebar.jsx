@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   LayoutDashboard,
   User,
@@ -6,16 +6,23 @@ import {
   Menu,
   LogOut,
   ChevronLeft,
+  CalendarClock,
   BarChart3,
 } from "lucide-react";
 import "./Sidebar.css";
 
-const Sidebar = ({ onLogout, user, isOpen, onToggle }) => {
-  const [activeItem, setActiveItem] = useState("dashboard");
-
+const Sidebar = ({
+  onLogout,
+  user,
+  isOpen,
+  onToggle,
+  activeItem = "dashboard",
+  onSelectItem,
+}) => {
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "profile", label: "Profile", icon: User },
+    { id: "attendance", label: "Attendance", icon: CalendarClock },
     { id: "reports", label: "Reports", icon: BarChart3 },
     { id: "settings", label: "Settings", icon: Settings },
   ];
@@ -40,12 +47,12 @@ const Sidebar = ({ onLogout, user, isOpen, onToggle }) => {
             <div
               key={item.id}
               className={`nav-item ${activeItem === item.id ? "active" : ""}`}
-              onClick={() => setActiveItem(item.id)}
+              onClick={() => onSelectItem?.(item.id)}
               role="button"
               tabIndex={0}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
-                  setActiveItem(item.id);
+                  onSelectItem?.(item.id);
                 }
               }}
             >
@@ -60,9 +67,7 @@ const Sidebar = ({ onLogout, user, isOpen, onToggle }) => {
       <div className="sidebar-footer">
         {isOpen && user && (
           <div className="user-info">
-            <span className="user-name">
-              {user.first_name || user.email}
-            </span>
+            <span className="user-name">{user.first_name || user.email}</span>
           </div>
         )}
         <button onClick={onLogout} className="logout-btn" title="Logout">
