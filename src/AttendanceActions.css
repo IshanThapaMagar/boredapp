@@ -199,6 +199,10 @@
   color: #3b82f6;
 }
 
+.time.absent {
+  color: #ef4444;
+}
+
 .time.in.late {
   color: #ef4444;
 }

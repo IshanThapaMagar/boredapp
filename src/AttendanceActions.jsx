@@ -1,11 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { LogIn, LogOut, Clock, Edit2 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
+import { NepaliDatePicker } from "nepali-datepicker-reactjs";
+import "nepali-datepicker-reactjs/dist/index.css";
+import { CALENDAR_TYPES, getTodayByPreference } from "./lib/calendar";
 import "./AttendanceActions.css";
 
 export function AttendanceActions({
+  userId,
   todayRecord,
   todayLeave,
+  calendarPreference,
   onCheckIn,
   onCheckOut,
   onManualLog,
@@ -22,8 +27,9 @@ export function AttendanceActions({
 
   useEffect(() => {
     const loadOfficeHours = async () => {
+      if (!userId) return;
       try {
-        const hours = await invoke("get_office_hours");
+        const hours = await invoke("get_office_hours", { userId });
         if (!Array.isArray(hours)) {
           setTodayStartTime(null);
           return;
@@ -47,7 +53,7 @@ export function AttendanceActions({
     };
 
     loadOfficeHours();
-  }, []);
+  }, [userId]);
 
   const toMinutes = (timeValue) => {
     if (!timeValue) return null;
@@ -113,7 +119,9 @@ export function AttendanceActions({
   const openManualDialog = (action) => {
     setManualAction(action);
     const now = new Date();
-    setManualDate(formatDate(now));
+    setManualDate(
+      getTodayByPreference(calendarPreference || CALENDAR_TYPES.AD),
+    );
     if (action === "in" || action === "log") {
       setManualCheckIn(
         action === "log" && todayRecord?.check_in
@@ -131,7 +139,11 @@ export function AttendanceActions({
     setIsManualOpen(true);
   };
 
-  const disabled = (todayLeave !== null && todayLeave !== undefined) || false;
+  const isFullDayLeave =
+    todayLeave &&
+    (todayLeave.leave_type === "public_holiday" ||
+      todayLeave.leave_type === "absent");
+  const disabled = isFullDayLeave || false;
 
   return (
     <div className="attendance-actions">
@@ -140,14 +152,20 @@ export function AttendanceActions({
           <h3 className="leave-notice-title">
             {todayLeave.leave_type === "public_holiday"
               ? "Today is a public holiday"
-              : "You're on leave today"}
+              : todayLeave.leave_type === "half_day"
+                ? "You're on Half-Day leave today"
+                : "You're on leave today"}
           </h3>
+          {todayLeave.leave_type === "half_day" && (
+            <p className="leave-notice-notes mt-1">
+              You may only log hours for the remainder of your shift.
+            </p>
+          )}
           {todayLeave.notes && (
             <p className="leave-notice-notes">{todayLeave.notes}</p>
           )}
         </div>
-      ) : null}
-      <div className="main-actions">
+      ) : null}      <div className="main-actions">
         <button
           onClick={() => onCheckIn()}
           disabled={disabled || isCheckedIn || isCheckedOut}
@@ -193,40 +211,53 @@ export function AttendanceActions({
         </button>
       </div>
 
-      {todayRecord && (
+      {!todayLeave && (
         <div className="status-card">
           <h4 className="status-title">Today's Status</h4>
-          <div className="status-grid">
-            <div className="time-entries">
-              {todayRecord.check_in && (
-                <div className="time-entry">
-                  <span className="label">Check In</span>
-                  <span className={`time in ${isLate ? "late" : ""}`}>
-                    {todayRecord.check_in}
+          {todayRecord && todayRecord.status !== "absent" ? (
+            <div className="status-grid">
+              <div className="time-entries">
+                {todayRecord.check_in && (
+                  <div className="time-entry">
+                    <span className="label">Check In</span>
+                    <span className={`time in ${isLate ? "late" : ""}`}>
+                      {todayRecord.check_in}
+                    </span>
+                    {isLate && (
+                      <span className="late-warning">Checked in late</span>
+                    )}
+                  </div>
+                )}
+                {todayRecord.check_out && (
+                  <div className="time-entry">
+                    <span className="label">Check Out</span>
+                    <span className="time">{todayRecord.check_out}</span>
+                  </div>
+                )}
+              </div>
+              {todayRecord.overtime > 0 && (
+                <div className="overtime">
+                  <span className="label">Overtime</span>
+                  <span className="overtime-value">
+                    +{Math.floor(todayRecord.overtime / 60)}h{" "}
+                    {todayRecord.overtime % 60}m
                   </span>
-                  {isLate && (
-                    <span className="late-warning">Checked in late</span>
-                  )}
-                </div>
-              )}
-              {todayRecord.check_out && (
-                <div className="time-entry">
-                  <span className="label">Check Out</span>
-                  <span className="time">{todayRecord.check_out}</span>
                 </div>
               )}
             </div>
-            {todayRecord.overtime > 0 && (
-              <div className="overtime">
-                <span className="label">Overtime</span>
-                <span className="overtime-value">
-                  +{Math.floor(todayRecord.overtime / 60)}h{" "}
-                  {todayRecord.overtime % 60}m
-                </span>
+          ) : (
+            <div className="status-grid">
+              <div className="time-entries">
+                <div className="time-entry">
+                  <span className="label">Status</span>
+                  <span className={`time ${todayRecord?.status === "absent" ? "absent" : ""}`}>
+                    {todayRecord?.status === "absent" ? "Absent" : "Not checked in"}
+                  </span>
+                </div>
               </div>
-            )}
-          </div>
-          {todayRecord.is_manual && (
+            </div>
+          )}
+          {todayRecord?.is_manual && todayRecord.status !== "absent" && (
             <span className="manual-tag">• Manually entered</span>
           )}
         </div>
@@ -250,13 +281,22 @@ export function AttendanceActions({
                 <label className="text-sm font-medium text-slate-700">
                   Date
                 </label>
-                <input
-                  type="date"
-                  required
-                  value={manualDate}
-                  onChange={(e) => setManualDate(e.target.value)}
-                  className="time-input"
-                />
+                {calendarPreference === CALENDAR_TYPES.BS ? (
+                  <NepaliDatePicker
+                    inputClassName="time-input"
+                    value={manualDate}
+                    onChange={(value) => setManualDate(value)}
+                    options={{ calenderLocale: "ne", valueLocale: "en" }}
+                  />
+                ) : (
+                  <input
+                    type="date"
+                    required
+                    value={manualDate}
+                    onChange={(e) => setManualDate(e.target.value)}
+                    className="time-input"
+                  />
+                )}
               </div>
 
               {(manualAction === "in" || manualAction === "log") && (

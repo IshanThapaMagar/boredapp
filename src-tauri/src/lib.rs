@@ -23,6 +23,8 @@ pub fn run() {
             commands::register,
             commands::logout,
             commands::get_user_by_id,
+            commands::get_calendar_preference,
+            commands::save_calendar_preference,
             commands::save_attendance_record,
             commands::get_attendance_record,
             commands::get_attendance_records,

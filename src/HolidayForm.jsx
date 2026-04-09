@@ -1,33 +1,92 @@
 import React, { useState } from "react";
 import { format } from "date-fns";
 import { invoke } from "@tauri-apps/api/core";
-import NepaliDate from "nepali-date-converter";
 import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/light.css";
-import { Palmtree, Plus, Trash2 } from "lucide-react";
+import "@sajanm/nepali-date-picker/dist/nepali.datepicker.v5.0.6.min.css";
+import "@sajanm/nepali-date-picker/dist/nepali.datepicker.v5.0.6.min.js";
+import { Palmtree, Plus } from "lucide-react";
 import { Button } from "./components/ui/button";
-import { Input } from "./components/ui/input";
 import { Label } from "./components/ui/label";
 import { Textarea } from "./components/ui/textarea";
+import { CALENDAR_TYPES, adToBs, bsToAd, formatAdDate } from "./lib/calendar";
 import { toast } from "sonner";
 import "./HolidayForm.css";
 
-export function HolidayForm({ userId, onSaved }) {
+export function HolidayForm({ userId, calendarPreference, onSaved }) {
   const [dateRange, setDateRange] = useState([new Date(), new Date()]);
+  const [bsStartDate, setBsStartDate] = useState("");
+  const [bsEndDate, setBsEndDate] = useState("");
+  const bsRangeInputRef = React.useRef(null);
   const [type, setType] = useState("public_holiday");
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const isBsMode = calendarPreference === CALENDAR_TYPES.BS;
+
+  React.useEffect(() => {
+    const todayAd = formatAdDate(new Date());
+    const todayBs = adToBs(todayAd);
+    setBsStartDate(todayBs);
+    setBsEndDate(todayBs);
+  }, []);
+
+  React.useEffect(() => {
+    if (!isBsMode || !bsRangeInputRef.current) return;
+
+    const input = bsRangeInputRef.current;
+    const defaultValue =
+      bsStartDate && bsEndDate ? `${bsStartDate} - ${bsEndDate}` : "";
+
+    input.value = defaultValue;
+
+    input.NepaliDatePicker({
+      range: true,
+      dateFormat: "YYYY-MM-DD",
+      value: defaultValue,
+      onSelect: (selected) => {
+        if (!Array.isArray(selected) || selected.length === 0) {
+          return;
+        }
+
+        const start = selected[0]?.value || "";
+        const end = selected[1]?.value || start;
+
+        setBsStartDate(start);
+        setBsEndDate(end);
+        input.value = end ? `${start} - ${end}` : start;
+      },
+    });
+  }, [isBsMode]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!dateRange || dateRange.length === 0) {
-      toast.error("Please select a date range");
-      return;
-    }
+    let startDate;
+    let endDate;
 
-    const startDate = dateRange[0];
-    const endDate = dateRange.length > 1 ? dateRange[1] : dateRange[0];
+    if (isBsMode) {
+      if (!bsStartDate || !bsEndDate) {
+        toast.error("Please enter a BS date range");
+        return;
+      }
+
+      try {
+        startDate = new Date(`${bsToAd(bsStartDate)}T00:00:00`);
+        endDate = new Date(`${bsToAd(bsEndDate)}T00:00:00`);
+      } catch (err) {
+        toast.error("Invalid BS date. Use YYYY-MM-DD.");
+        return;
+      }
+    } else {
+      if (!dateRange || dateRange.length === 0) {
+        toast.error("Please select a date range");
+        return;
+      }
+
+      startDate = dateRange[0];
+      endDate = dateRange.length > 1 ? dateRange[1] : dateRange[0];
+    }
 
     if (startDate > endDate) {
       toast.error("Start date must be before end date");
@@ -46,14 +105,15 @@ export function HolidayForm({ userId, onSaved }) {
 
       for (const d of datesToLog) {
         const adDateStr = format(d, "yyyy-MM-dd");
-        const nd = new NepaliDate(d);
-        const bsDateStr = nd.format("YYYY-MM-DD");
+        const bsDateStr = adToBs(adDateStr);
 
         await invoke("add_leave_log", {
           log: {
             id: null,
             user_id: userId,
             leave_date: adDateStr,
+            leave_date_ad: adDateStr,
+            leave_date_bs: bsDateStr,
             leave_type: type,
             notes: notes || "",
             absent_date_bs: bsDateStr,
@@ -89,20 +149,27 @@ export function HolidayForm({ userId, onSaved }) {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="holidayDateRange" className="text-sm">
-            Select Dates
-          </Label>
-          <Flatpickr
-            id="holidayDateRange"
-            value={dateRange}
-            onChange={(dates) => setDateRange(dates)}
-            options={{
-              mode: "range",
-              dateFormat: "Y-m-d",
-            }}
-            className="flex h-11 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-            placeholder="Select start and end dates"
-          />
+          {isBsMode ? (
+            <input
+              id="holidayDateRange"
+              ref={bsRangeInputRef}
+              type="text"
+              placeholder="Select Date"
+              readOnly
+              className="flex h-11 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm"
+            />
+          ) : (
+            <Flatpickr
+              id="holidayDateRange"
+              value={dateRange}
+              onChange={(dates) => setDateRange(dates)}
+              options={{
+                mode: "range",
+                dateFormat: "Y-m-d",
+              }}
+              className="flex h-11 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+            />
+          )}
         </div>
 
         <div className="space-y-2">
@@ -112,15 +179,26 @@ export function HolidayForm({ userId, onSaved }) {
               type="button"
               variant={type === "public_holiday" ? "default" : "outline"}
               onClick={() => setType("public_holiday")}
-              className="flex-1 h-11"
+              className="flex-1 h-11 whitespace-nowrap"
+              style={{ padding: "0 4px", fontSize: "0.85rem" }}
             >
               Public Holiday
             </Button>
             <Button
               type="button"
+              variant={type === "half_day" ? "secondary" : "outline"}
+              onClick={() => setType("half_day")}
+              className="flex-1 h-11 whitespace-nowrap"
+              style={{ padding: "0 4px", fontSize: "0.85rem" }}
+            >
+              Half Day
+            </Button>
+            <Button
+              type="button"
               variant={type === "absent" ? "destructive" : "outline"}
               onClick={() => setType("absent")}
-              className="flex-1 h-11"
+              className="flex-1 h-11 whitespace-nowrap"
+              style={{ padding: "0 4px", fontSize: "0.85rem" }}
             >
               Absent
             </Button>

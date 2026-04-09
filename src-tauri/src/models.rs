@@ -27,12 +27,21 @@ pub struct UserData {
     pub id: i64,
     pub username: String,
     pub email: String,
+    pub calendar_preference: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CalendarPreferencePayload {
+    pub user_id: i64,
+    pub calendar_preference: String, // "ad" or "bs"
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AttendanceRecord {
     pub user_id: i64,
-    pub date: String,              // YYYY-MM-DD
+    pub date: String,              // Backward-compatible AD date (YYYY-MM-DD)
+    pub attendance_date_ad: String,
+    pub attendance_date_bs: Option<String>,
     pub check_in: Option<String>,  // HH:mm
     pub check_out: Option<String>, // HH:mm
     pub status: String,
@@ -52,7 +61,9 @@ pub struct OfficeHour {
 pub struct LeaveLog {
     pub id: Option<i64>,
     pub user_id: i64,
-    pub leave_date: String, // YYYY-MM-DD
+    pub leave_date: String, // Backward-compatible AD date (YYYY-MM-DD)
+    pub leave_date_ad: String,
+    pub leave_date_bs: Option<String>,
     pub leave_type: String, // 'public_holiday' or 'absent'
     pub notes: String,
     pub absent_date_bs: Option<String>,

@@ -15,6 +15,12 @@ import { AttendanceActions } from "./AttendanceActions";
 import AttendanceTablePage from "./AttendanceTablePage";
 import SettingsPage from "./SettingsPage";
 import { HolidayForm } from "./HolidayForm";
+import {
+  CALENDAR_TYPES,
+  adToBs,
+  formatAdDate,
+  toDatePayload,
+} from "./lib/calendar";
 import { Toaster } from "sonner";
 import "./Dashboard.css";
 
@@ -97,7 +103,9 @@ const buildWeeklyAttendanceData = (attendanceRecords, leaveLogs) => {
       status: leave
         ? leave.leave_type === "public_holiday"
           ? "Holiday"
-          : "Leave"
+          : leave.leave_type === "half_day"
+            ? "Half Day"
+            : "Leave"
         : attendance
           ? attendance.check_in && attendance.check_out
             ? "Present"
@@ -120,6 +128,12 @@ const buildLeaveDistribution = (leaveLogs) => {
       label: "Public Holiday",
       count: distribution.public_holiday || 0,
       color: "#2563eb",
+    },
+    {
+      key: "half_day",
+      label: "Half Day",
+      count: distribution.half_day || 0,
+      color: "#eab308",
     },
     {
       key: "absent",
@@ -542,6 +556,9 @@ const Dashboard = () => {
   const [chartRefreshToken, setChartRefreshToken] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeSection, setActiveSection] = useState("dashboard");
+  const [calendarPreference, setCalendarPreference] = useState(
+    CALENDAR_TYPES.AD,
+  );
 
   useEffect(() => {
     const storedUser =
@@ -588,6 +605,11 @@ const Dashboard = () => {
     try {
       const userData = JSON.parse(storedUser);
       setUser(userData);
+      setCalendarPreference(
+        userData.calendar_preference === CALENDAR_TYPES.BS
+          ? CALENDAR_TYPES.BS
+          : CALENDAR_TYPES.AD,
+      );
       fetchTodayRecord(userData.id);
     } catch (err) {
       console.error("Error parsing user data:", err);
@@ -596,6 +618,37 @@ const Dashboard = () => {
       setLoading(false);
     }
   }, [navigate]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const loadCalendarPreference = async () => {
+      try {
+        const preference = await invoke("get_calendar_preference", {
+          userId: user.id,
+        });
+
+        const safePreference =
+          preference === CALENDAR_TYPES.BS
+            ? CALENDAR_TYPES.BS
+            : CALENDAR_TYPES.AD;
+
+        setCalendarPreference(safePreference);
+
+        const updatedUser = { ...user, calendar_preference: safePreference };
+        if (localStorage.getItem("user")) {
+          localStorage.setItem("user", JSON.stringify(updatedUser));
+        }
+        if (sessionStorage.getItem("user")) {
+          sessionStorage.setItem("user", JSON.stringify(updatedUser));
+        }
+      } catch (err) {
+        console.error("Failed to load calendar preference:", err);
+      }
+    };
+
+    loadCalendarPreference();
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -635,13 +688,15 @@ const Dashboard = () => {
   }, [user, chartRefreshToken]);
 
   const saveRecord = async (record) => {
-    setTodayRecord(record);
     if (user) {
       try {
         await invoke("save_attendance_record", { record });
+        setTodayRecord(record);
         setChartRefreshToken((value) => value + 1);
+        toast.success("Attendance saved successfully!");
       } catch (err) {
         console.error("Error saving attendance:", err);
+        toast.error(typeof err === "string" ? err : "Failed to save attendance.");
       }
     }
   };
@@ -654,17 +709,18 @@ const Dashboard = () => {
         ":" +
         now.getMinutes().toString().padStart(2, "0");
 
-    const dateStr =
+    const selectedDate =
       manualDate ||
-      now.getFullYear() +
-        "-" +
-        (now.getMonth() + 1).toString().padStart(2, "0") +
-        "-" +
-        now.getDate().toString().padStart(2, "0");
+      (calendarPreference === CALENDAR_TYPES.BS
+        ? adToBs(formatAdDate(now))
+        : formatAdDate(now));
+    const datePayload = toDatePayload(selectedDate, calendarPreference);
 
     const newRecord = {
       user_id: user.id,
-      date: dateStr,
+      date: datePayload.ad,
+      attendance_date_ad: datePayload.ad,
+      attendance_date_bs: datePayload.bs,
       check_in: timeStr,
       check_out: null,
       status: "checked-in",
@@ -693,17 +749,18 @@ const Dashboard = () => {
         ":" +
         now.getMinutes().toString().padStart(2, "0");
 
-    const dateStr =
+    const selectedDate =
       manualDate ||
-      now.getFullYear() +
-        "-" +
-        (now.getMonth() + 1).toString().padStart(2, "0") +
-        "-" +
-        now.getDate().toString().padStart(2, "0");
+      (calendarPreference === CALENDAR_TYPES.BS
+        ? adToBs(formatAdDate(now))
+        : formatAdDate(now));
+    const datePayload = toDatePayload(selectedDate, calendarPreference);
 
     const updatedRecord = {
       user_id: user.id,
-      date: dateStr,
+      date: datePayload.ad,
+      attendance_date_ad: datePayload.ad,
+      attendance_date_bs: datePayload.bs,
       check_in: todayRecord?.check_in || null,
       check_out: timeStr,
       status: "checked-out",
@@ -715,9 +772,12 @@ const Dashboard = () => {
 
   const handleManualLog = (manualData) => {
     const { date, checkIn, checkOut } = manualData;
+    const datePayload = toDatePayload(date, calendarPreference);
     const record = {
       user_id: user.id,
-      date: date,
+      date: datePayload.ad,
+      attendance_date_ad: datePayload.ad,
+      attendance_date_bs: datePayload.bs,
       check_in: checkIn,
       check_out: checkOut,
       status: "checked-out",
@@ -736,6 +796,25 @@ const Dashboard = () => {
       navigate("/");
     } catch (err) {
       console.error("Logout error:", err);
+    }
+  };
+
+  const handleCalendarPreferenceSaved = (preference) => {
+    const safePreference =
+      preference === CALENDAR_TYPES.BS ? CALENDAR_TYPES.BS : CALENDAR_TYPES.AD;
+
+    setCalendarPreference(safePreference);
+
+    if (user) {
+      const updatedUser = { ...user, calendar_preference: safePreference };
+      setUser(updatedUser);
+
+      if (localStorage.getItem("user")) {
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+      }
+      if (sessionStorage.getItem("user")) {
+        sessionStorage.setItem("user", JSON.stringify(updatedUser));
+      }
     }
   };
 
@@ -771,16 +850,24 @@ const Dashboard = () => {
         className={`main-content ${!isSidebarOpen ? "sidebar-closed" : ""} ${activeSection === "settings" ? "is-settings" : ""}`}
       >
         {activeSection === "attendance" ? (
-          <AttendanceTablePage userId={user.id} />
+          <AttendanceTablePage
+            userId={user.id}
+            calendarPreference={calendarPreference}
+          />
         ) : activeSection === "settings" ? (
-          <SettingsPage user={user} />
+          <SettingsPage
+            user={user}
+            onCalendarPreferenceSaved={handleCalendarPreferenceSaved}
+          />
         ) : (
           <div className="dashboard-content">
             <div className="left-side">
               <div className="attendance-container">
                 <AttendanceActions
+                  userId={user.id}
                   todayRecord={todayRecord}
                   todayLeave={todayLeave}
+                  calendarPreference={calendarPreference}
                   onCheckIn={handleCheckIn}
                   onCheckOut={handleCheckOut}
                   onManualLog={handleManualLog}
@@ -790,6 +877,7 @@ const Dashboard = () => {
               <div className="holiday-form-container">
                 <HolidayForm
                   userId={user.id}
+                  calendarPreference={calendarPreference}
                   onSaved={() => setChartRefreshToken((value) => value + 1)}
                 />
               </div>

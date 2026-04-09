@@ -21,7 +21,6 @@ const Sidebar = ({
 }) => {
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { id: "profile", label: "Profile", icon: User },
     { id: "attendance", label: "Attendance", icon: CalendarClock },
     { id: "reports", label: "Reports", icon: BarChart3 },
     { id: "settings", label: "Settings", icon: Settings },

@@ -1,6 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Filter, RefreshCcw } from "lucide-react";
+import {
+  CALENDAR_TYPES,
+  adToBs,
+  bsToAd,
+  NEPALI_MONTHS,
+  getBsMonthRange,
+} from "./lib/calendar";
+import { NepaliDatePicker } from "nepali-datepicker-reactjs";
+import "nepali-datepicker-reactjs/dist/index.css";
+import NepaliDate from "nepali-date-converter";
 import "./AttendanceTablePage.css";
 
 const formatDate = (date) => {
@@ -24,7 +34,6 @@ const getMonthRange = (baseDate) => {
   const end = new Date(year, month + 1, 0);
   const today = new Date();
 
-  // Clamp end date for current month so we don't request future dates.
   const clampedEnd =
     year === today.getFullYear() && month === today.getMonth() ? today : end;
 
@@ -34,12 +43,22 @@ const getMonthRange = (baseDate) => {
   };
 };
 
+const getClampedBsMonthRange = (year, month) => {
+  const range = getBsMonthRange(year, month);
+  const todayAd = formatDate(new Date());
+
+  return {
+    from: range.from,
+    to: range.to > todayAd ? todayAd : range.to,
+  };
+};
+
 const minutesToHoursText = (minutes) => {
   if (!minutes || minutes <= 0) return "0h 0m";
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 };
 
-export default function AttendanceTablePage({ userId }) {
+export default function AttendanceTablePage({ userId, calendarPreference }) {
   const [records, setRecords] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -72,7 +91,11 @@ export default function AttendanceTablePage({ userId }) {
       return { label: "Present", tone: "present" };
     if (record.check_in && !record.check_out)
       return { label: "Checked In", tone: "checkedin" };
-    return { label: "Absent", tone: "absent" };
+    if (record.status === "absent")
+      return { label: "Absent", tone: "absent" };
+    if (record.status === "half_day")
+      return { label: "Half Day Leave", tone: "absent" };
+    return { label: "Not checked in", tone: "notcheckedin" };
   };
 
   const fetchRecords = async (customFromDate, customToDate) => {
@@ -93,7 +116,7 @@ export default function AttendanceTablePage({ userId }) {
             endDate,
           }),
           invoke("get_leave_logs", { userId }),
-          invoke("get_office_hours"),
+          invoke("get_office_hours", { userId }),
         ]);
 
       const attendance = Array.isArray(attendanceResponse)
@@ -105,14 +128,16 @@ export default function AttendanceTablePage({ userId }) {
         : [];
 
       const attendanceMap = new Map(
-        attendance.map((item) => [item.date, item]),
+        attendance.map((item) => [item.attendance_date_ad || item.date, item]),
       );
       const leaveMap = new Map(
         leaveLogs
           .filter(
-            (log) => log.leave_date >= startDate && log.leave_date <= endDate,
+            (log) =>
+              (log.leave_date_ad || log.leave_date) >= startDate &&
+              (log.leave_date_ad || log.leave_date) <= endDate,
           )
-          .map((log) => [log.leave_date, log]),
+          .map((log) => [log.leave_date_ad || log.leave_date, log]),
       );
       const officeMap = new Map(
         officeHours.map((hour) => [Number(hour.day_of_week), hour]),
@@ -132,6 +157,8 @@ export default function AttendanceTablePage({ userId }) {
           return {
             user_id: userId,
             date,
+            attendance_date_ad: date,
+            attendance_date_bs: adToBs(date),
             check_in: null,
             check_out: null,
             status: "holiday",
@@ -144,6 +171,8 @@ export default function AttendanceTablePage({ userId }) {
           return {
             user_id: userId,
             date,
+            attendance_date_ad: date,
+            attendance_date_bs: adToBs(date),
             check_in: null,
             check_out: null,
             status: "off-day",
@@ -152,12 +181,42 @@ export default function AttendanceTablePage({ userId }) {
           };
         }
 
+        if (leaveItem?.leave_type === "absent") {
+          return {
+            user_id: userId,
+            date,
+            attendance_date_ad: date,
+            attendance_date_bs: adToBs(date),
+            check_in: null,
+            check_out: null,
+            status: "absent",
+            overtime: 0,
+            is_manual: false,
+          };
+        }
+
+        if (leaveItem?.leave_type === "half_day") {
+          return {
+            user_id: userId,
+            date,
+            attendance_date_ad: date,
+            attendance_date_bs: adToBs(date),
+            check_in: null,
+            check_out: null,
+            status: "half_day",
+            overtime: 0,
+            is_manual: false,
+          };
+        }
+
         return {
           user_id: userId,
           date,
+          attendance_date_ad: date,
+          attendance_date_bs: adToBs(date),
           check_in: null,
           check_out: null,
-          status: "absent",
+          status: "notcheckedin",
           overtime: 0,
           is_manual: false,
         };
@@ -174,17 +233,42 @@ export default function AttendanceTablePage({ userId }) {
   };
 
   useEffect(() => {
-    fetchRecords();
-  }, [userId]);
+    if (calendarPreference === CALENDAR_TYPES.BS) {
+      const now = new NepaliDate();
+      const { from, to } = getClampedBsMonthRange(
+        now.getYear(),
+        now.getMonth() + 1,
+      );
+      setFromDate(from);
+      setToDate(to);
+      setSelectedMonth({ year: now.getYear(), month: now.getMonth() + 1 });
+      fetchRecords(from, to);
+    } else {
+      fetchRecords();
+    }
+  }, [userId, calendarPreference]);
 
-  const applyMonthRange = (baseDate) => {
-    const nextMonth = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
-    const { from, to } = getMonthRange(nextMonth);
+  const applyMonthRange = (baseDate, bsMonthData = null) => {
+    if (calendarPreference === CALENDAR_TYPES.BS && bsMonthData) {
+      const { year, month } = bsMonthData;
+      const { from, to } = getClampedBsMonthRange(year, month);
+      setSelectedMonth(bsMonthData);
+      setFromDate(from);
+      setToDate(to);
+      fetchRecords(from, to);
+    } else {
+      const nextMonth = new Date(
+        baseDate.getFullYear(),
+        baseDate.getMonth(),
+        1,
+      );
+      const { from, to } = getMonthRange(nextMonth);
 
-    setSelectedMonth(nextMonth);
-    setFromDate(from);
-    setToDate(to);
-    fetchRecords(from, to);
+      setSelectedMonth(nextMonth);
+      setFromDate(from);
+      setToDate(to);
+      fetchRecords(from, to);
+    }
   };
 
   const filteredRecords = useMemo(() => {
@@ -267,43 +351,128 @@ export default function AttendanceTablePage({ userId }) {
           <button
             type="button"
             className="attendance-btn secondary"
-            onClick={() =>
-              applyMonthRange(
-                new Date(
-                  selectedMonth.getFullYear(),
-                  selectedMonth.getMonth() - 1,
-                  1,
-                ),
-              )
-            }
+            onClick={() => {
+              if (calendarPreference === CALENDAR_TYPES.BS) {
+                let { year, month } =
+                  selectedMonth instanceof NepaliDate
+                    ? {
+                        year: selectedMonth.getYear(),
+                        month: selectedMonth.getMonth() + 1,
+                      }
+                    : new NepaliDate(selectedMonth).getYear()
+                      ? {
+                          year: new NepaliDate(selectedMonth).getYear(),
+                          month: new NepaliDate(selectedMonth).getMonth() + 1,
+                        }
+                      : { year: 2081, month: 1 };
+                // If selectedMonth is Date (AD), convert it first
+                if (
+                  !(selectedMonth instanceof NepaliDate) &&
+                  selectedMonth.getFullYear
+                ) {
+                  const nd = new NepaliDate(selectedMonth);
+                  year = nd.getYear();
+                  month = nd.getMonth() + 1;
+                } else if (
+                  typeof selectedMonth === "object" &&
+                  selectedMonth.year
+                ) {
+                  year = selectedMonth.year;
+                  month = selectedMonth.month;
+                }
+
+                month--;
+                if (month < 1) {
+                  month = 12;
+                  year--;
+                }
+                applyMonthRange(null, { year, month });
+              } else {
+                applyMonthRange(
+                  new Date(
+                    selectedMonth.getFullYear(),
+                    selectedMonth.getMonth() - 1,
+                    1,
+                  ),
+                );
+              }
+            }}
           >
             Prev Month
           </button>
           <div className="attendance-month-label">
-            {selectedMonth.toLocaleDateString("en-US", {
-              month: "long",
-              year: "numeric",
-            })}
+            {calendarPreference === CALENDAR_TYPES.BS
+              ? (() => {
+                  let year, month;
+                  if (typeof selectedMonth === "object" && selectedMonth.year) {
+                    year = selectedMonth.year;
+                    month = selectedMonth.month;
+                  } else {
+                    const nd = new NepaliDate(
+                      selectedMonth instanceof Date
+                        ? selectedMonth
+                        : new Date(),
+                    );
+                    year = nd.getYear();
+                    month = nd.getMonth() + 1;
+                  }
+                  return `${NEPALI_MONTHS[month - 1]} ${year}`;
+                })()
+              : selectedMonth.toLocaleDateString("en-US", {
+                  month: "long",
+                  year: "numeric",
+                })}
           </div>
           <button
             type="button"
             className="attendance-btn secondary"
-            onClick={() =>
-              applyMonthRange(
-                new Date(
-                  selectedMonth.getFullYear(),
-                  selectedMonth.getMonth() + 1,
-                  1,
-                ),
-              )
-            }
+            onClick={() => {
+              if (calendarPreference === CALENDAR_TYPES.BS) {
+                let year, month;
+                if (typeof selectedMonth === "object" && selectedMonth.year) {
+                  year = selectedMonth.year;
+                  month = selectedMonth.month;
+                } else {
+                  const nd = new NepaliDate(
+                    selectedMonth instanceof Date ? selectedMonth : new Date(),
+                  );
+                  year = nd.getYear();
+                  month = nd.getMonth() + 1;
+                }
+
+                month++;
+                if (month > 12) {
+                  month = 1;
+                  year++;
+                }
+                applyMonthRange(null, { year, month });
+              } else {
+                applyMonthRange(
+                  new Date(
+                    selectedMonth.getFullYear(),
+                    selectedMonth.getMonth() + 1,
+                    1,
+                  ),
+                );
+              }
+            }}
           >
             Next Month
           </button>
           <button
             type="button"
             className="attendance-btn"
-            onClick={() => applyMonthRange(new Date())}
+            onClick={() => {
+              if (calendarPreference === CALENDAR_TYPES.BS) {
+                const now = new NepaliDate();
+                applyMonthRange(null, {
+                  year: now.getYear(),
+                  month: now.getMonth() + 1,
+                });
+              } else {
+                applyMonthRange(new Date());
+              }
+            }}
           >
             Current Month
           </button>
@@ -312,20 +481,38 @@ export default function AttendanceTablePage({ userId }) {
         <div className="attendance-filter-grid">
           <label className="attendance-filter-item">
             From
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-            />
+            {calendarPreference === CALENDAR_TYPES.BS ? (
+              <NepaliDatePicker
+                inputClassName="attendance-date-input"
+                value={adToBs(fromDate)}
+                onChange={(value) => setFromDate(bsToAd(value))}
+                options={{ calenderLocale: "ne", valueLocale: "en" }}
+              />
+            ) : (
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+              />
+            )}
           </label>
 
           <label className="attendance-filter-item">
             To
-            <input
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-            />
+            {calendarPreference === CALENDAR_TYPES.BS ? (
+              <NepaliDatePicker
+                inputClassName="attendance-date-input"
+                value={adToBs(toDate)}
+                onChange={(value) => setToDate(bsToAd(value))}
+                options={{ calenderLocale: "ne", valueLocale: "en" }}
+              />
+            ) : (
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+              />
+            )}
           </label>
 
           <label className="attendance-filter-item">
@@ -368,12 +555,30 @@ export default function AttendanceTablePage({ userId }) {
               type="button"
               className="attendance-btn secondary"
               onClick={() => {
-                const now = new Date();
-                setSelectedMonth(now);
-                setFromDate(getDefaultFromDate());
-                setToDate(getDefaultToDate());
-                setStatusFilter("all");
-                setEntryFilter("all");
+                if (calendarPreference === CALENDAR_TYPES.BS) {
+                  const now = new NepaliDate();
+                  const { from, to } = getClampedBsMonthRange(
+                    now.getYear(),
+                    now.getMonth() + 1,
+                  );
+                  setFromDate(from);
+                  setToDate(to);
+                  setSelectedMonth({
+                    year: now.getYear(),
+                    month: now.getMonth() + 1,
+                  });
+                  setStatusFilter("all");
+                  setEntryFilter("all");
+                  fetchRecords(from, to);
+                } else {
+                  const now = new Date();
+                  setSelectedMonth(now);
+                  setFromDate(getDefaultFromDate());
+                  setToDate(getDefaultToDate());
+                  setStatusFilter("all");
+                  setEntryFilter("all");
+                  fetchRecords(getDefaultFromDate(), getDefaultToDate());
+                }
               }}
             >
               Reset
@@ -409,8 +614,15 @@ export default function AttendanceTablePage({ userId }) {
               </thead>
               <tbody>
                 {filteredRecords.map((record) => (
-                  <tr key={`${record.date}-${record.user_id}`}>
-                    <td>{record.date}</td>
+                  <tr
+                    key={`${record.attendance_date_ad || record.date}-${record.user_id}`}
+                  >
+                    <td>
+                      {calendarPreference === CALENDAR_TYPES.BS
+                        ? record.attendance_date_bs ||
+                          adToBs(record.attendance_date_ad || record.date)
+                        : record.attendance_date_ad || record.date}
+                    </td>
                     <td>{record.check_in || "-"}</td>
                     <td>{record.check_out || "-"}</td>
                     <td>
@@ -428,7 +640,7 @@ export default function AttendanceTablePage({ userId }) {
                       {record.status === "holiday" ||
                       record.status === "off-day"
                         ? "Leave"
-                        : record.status === "absent"
+                        : record.status === "absent" || record.status === "half_day"
                           ? "Auto"
                           : record.is_manual
                             ? "Manual"
