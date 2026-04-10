@@ -1,7 +1,7 @@
-use mysql::prelude::Queryable;
-use tauri::State;
 use crate::db::AppState;
 use crate::models::*;
+use mysql::prelude::Queryable;
+use tauri::State;
 
 #[tauri::command]
 pub fn greet(name: &str) -> String {
@@ -140,7 +140,10 @@ pub fn get_calendar_preference(user_id: i64, state: State<AppState>) -> Result<S
 }
 
 #[tauri::command]
-pub fn save_calendar_preference(payload: CalendarPreferencePayload, state: State<AppState>) -> Result<bool, String> {
+pub fn save_calendar_preference(
+    payload: CalendarPreferencePayload,
+    state: State<AppState>,
+) -> Result<bool, String> {
     let mut conn = state
         .pool
         .get_conn()
@@ -176,10 +179,12 @@ pub fn save_attendance_record(
         record.attendance_date_ad.clone()
     };
 
-    let existing_leave: Option<(String,)> = conn.exec_first(
-        "SELECT leave_type FROM leave_logs WHERE user_id = ? AND leave_date_ad = ?",
-        (record.user_id, &attendance_date_ad)
-    ).unwrap_or(None);
+    let existing_leave: Option<(String,)> = conn
+        .exec_first(
+            "SELECT leave_type FROM leave_logs WHERE user_id = ? AND leave_date_ad = ?",
+            (record.user_id, &attendance_date_ad),
+        )
+        .unwrap_or(None);
 
     if let Some((leave_type,)) = existing_leave {
         if leave_type == "absent" || leave_type == "public_holiday" {
@@ -190,13 +195,15 @@ pub fn save_attendance_record(
                     "SELECT start_time, end_time FROM office_working_hours WHERE user_id = ? AND day_of_week = (DAYOFWEEK(?) - 1)",
                     (record.user_id, &attendance_date_ad)
                 ).unwrap_or(None);
-                
+
                 if let Some((Some(start), Some(end))) = office_info {
                     fn t2m(t: &str) -> i32 {
                         let p: Vec<&str> = t.split(':').collect();
                         if p.len() == 2 {
                             p[0].parse::<i32>().unwrap_or(0) * 60 + p[1].parse::<i32>().unwrap_or(0)
-                        } else { 0 }
+                        } else {
+                            0
+                        }
                     }
                     let worked = t2m(check_out) - t2m(check_in);
                     let total = t2m(&end) - t2m(&start);
@@ -297,7 +304,15 @@ pub fn get_attendance_records(
     let records = result
         .into_iter()
         .map(
-            |(attendance_date_ad, attendance_date_bs, check_in, check_out, status, overtime, is_manual)| AttendanceRecord {
+            |(
+                attendance_date_ad,
+                attendance_date_bs,
+                check_in,
+                check_out,
+                status,
+                overtime,
+                is_manual,
+            )| AttendanceRecord {
                 user_id,
                 date: attendance_date_ad.clone(),
                 attendance_date_ad,
@@ -371,7 +386,11 @@ pub fn get_office_hours(user_id: i64, state: State<AppState>) -> Result<Vec<Offi
 }
 
 #[tauri::command]
-pub fn save_office_hours(user_id: i64, hours: Vec<OfficeHour>, state: State<AppState>) -> Result<bool, String> {
+pub fn save_office_hours(
+    user_id: i64,
+    hours: Vec<OfficeHour>,
+    state: State<AppState>,
+) -> Result<bool, String> {
     let mut conn = state
         .pool
         .get_conn()
@@ -422,7 +441,9 @@ pub fn add_leave_log(log: LeaveLog, state: State<AppState>) -> Result<LeaveLog, 
     if let Some((check_in_opt, check_out_opt)) = existing_attendance {
         if log.leave_type == "absent" || log.leave_type == "public_holiday" {
             if check_in_opt.is_some() {
-                return Err("Cannot apply for full-day leave. You have attendance logs today.".to_string());
+                return Err(
+                    "Cannot apply for full-day leave. You have attendance logs today.".to_string(),
+                );
             }
         } else if log.leave_type == "half_day" {
             if check_in_opt.is_some() && check_out_opt.is_none() {
@@ -433,18 +454,22 @@ pub fn add_leave_log(log: LeaveLog, state: State<AppState>) -> Result<LeaveLog, 
                     "SELECT start_time, end_time FROM office_working_hours WHERE user_id = ? AND day_of_week = (DAYOFWEEK(?) - 1)",
                     (log.user_id, &leave_date_ad)
                 ).unwrap_or(None);
-                
+
                 if let Some((Some(start), Some(end))) = office_info {
                     fn t2m(t: &str) -> i32 {
                         let p: Vec<&str> = t.split(':').collect();
                         if p.len() == 2 {
                             p[0].parse::<i32>().unwrap_or(0) * 60 + p[1].parse::<i32>().unwrap_or(0)
-                        } else { 0 }
+                        } else {
+                            0
+                        }
                     }
                     let worked = t2m(&check_out) - t2m(&check_in);
                     let total = t2m(&end) - t2m(&start);
                     if worked > (total / 2) + 15 {
-                        return Err("Cannot apply for half-day leave. Full day already worked.".to_string());
+                        return Err(
+                            "Cannot apply for half-day leave. Full day already worked.".to_string()
+                        );
                     }
                 }
             }
@@ -506,23 +531,23 @@ pub fn get_leave_logs(user_id: i64, state: State<AppState>) -> Result<Vec<LeaveL
     let logs = result
         .into_iter()
         .map(|(id, leave_date_ad, leave_date_bs, leave_type, notes)| {
-                let leave_bs_value = if leave_date_bs.is_empty() {
-                    None
-                } else {
-                    Some(leave_date_bs)
-                };
+            let leave_bs_value = if leave_date_bs.is_empty() {
+                None
+            } else {
+                Some(leave_date_bs)
+            };
 
-                LeaveLog {
-                    id: Some(id),
-                    user_id,
-                    leave_date: leave_date_ad.clone(),
-                    leave_date_ad,
-                    leave_date_bs: leave_bs_value.clone(),
-                    leave_type,
-                    notes,
-                    absent_date_bs: leave_bs_value,
-                }
-            })
+            LeaveLog {
+                id: Some(id),
+                user_id,
+                leave_date: leave_date_ad.clone(),
+                leave_date_ad,
+                leave_date_bs: leave_bs_value.clone(),
+                leave_type,
+                notes,
+                absent_date_bs: leave_bs_value,
+            }
+        })
         .collect();
 
     Ok(logs)
@@ -546,7 +571,8 @@ pub fn get_today_leave(
         )
         .map_err(|e| format!("Database error: {}", e))?;
 
-    Ok(result.map(|(id, leave_date_ad, leave_date_bs, leave_type, notes)| {
+    Ok(
+        result.map(|(id, leave_date_ad, leave_date_bs, leave_type, notes)| {
             let leave_bs_value = if leave_date_bs.is_empty() {
                 None
             } else {
@@ -563,7 +589,8 @@ pub fn get_today_leave(
                 notes,
                 absent_date_bs: leave_bs_value,
             }
-        }))
+        }),
+    )
 }
 
 #[tauri::command]

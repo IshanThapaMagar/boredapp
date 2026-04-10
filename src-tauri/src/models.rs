@@ -39,7 +39,7 @@ pub struct CalendarPreferencePayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AttendanceRecord {
     pub user_id: i64,
-    pub date: String,              // Backward-compatible AD date (YYYY-MM-DD)
+    pub date: String, // Backward-compatible AD date (YYYY-MM-DD)
     pub attendance_date_ad: String,
     pub attendance_date_bs: Option<String>,
     pub check_in: Option<String>,  // HH:mm

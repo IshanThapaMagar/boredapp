@@ -696,7 +696,9 @@ const Dashboard = () => {
         toast.success("Attendance saved successfully!");
       } catch (err) {
         console.error("Error saving attendance:", err);
-        toast.error(typeof err === "string" ? err : "Failed to save attendance.");
+        toast.error(
+          typeof err === "string" ? err : "Failed to save attendance.",
+        );
       }
     }
   };
