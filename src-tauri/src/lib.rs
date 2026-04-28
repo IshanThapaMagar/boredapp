@@ -1,6 +1,8 @@
 mod models;
 mod db;
 mod commands;
+mod repositories;
+mod services;
 
 use tauri::Manager;
 use db::AppState;

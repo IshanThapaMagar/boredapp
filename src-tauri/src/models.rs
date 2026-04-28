@@ -12,6 +12,7 @@ pub struct User {
 pub struct LoginRequest {
     pub email_or_username: String,
     pub password: String,
+    #[allow(dead_code)]
     pub remember_me: bool,
 }
 
@@ -39,7 +40,7 @@ pub struct CalendarPreferencePayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AttendanceRecord {
     pub user_id: i64,
-    pub date: String, // Backward-compatible AD date (YYYY-MM-DD)
+    pub date: String, 
     pub attendance_date_ad: String,
     pub attendance_date_bs: Option<String>,
     pub check_in: Option<String>,  // HH:mm
@@ -51,7 +52,7 @@ pub struct AttendanceRecord {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OfficeHour {
-    pub day_of_week: i32,           // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    pub day_of_week: i32,           
     pub start_time: Option<String>, // HH:mm
     pub end_time: Option<String>,   // HH:mm
     pub is_off_day: bool,
@@ -61,10 +62,10 @@ pub struct OfficeHour {
 pub struct LeaveLog {
     pub id: Option<i64>,
     pub user_id: i64,
-    pub leave_date: String, // Backward-compatible AD date (YYYY-MM-DD)
+    pub leave_date: String,
     pub leave_date_ad: String,
     pub leave_date_bs: Option<String>,
-    pub leave_type: String, // 'public_holiday' or 'absent'
+    pub leave_type: String,
     pub notes: String,
     pub absent_date_bs: Option<String>,
 }
